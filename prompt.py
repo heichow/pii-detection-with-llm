@@ -90,6 +90,14 @@ Return the PII result in JSON format following the example below:
 
 Exclude pii_schema_mapping if no database schema is provided.
 
+If the data is image, also return the bounding box in a list of [x1, y1, x2, y2] of each PII category, following the example below:
+
+{{
+    "has_pii": true,
+    "pii_categories": ["NAME", "ADDRESS"]
+    "pii_bounding_box": {{ "NAME": [391, 182, 647, 809], "ADDRESS": [65, 204, 280, 449] }}
+}}
+
 Do not return the PII value in the output. Do not return ```json at the beginning and ``` in the end of output.
 """
 
