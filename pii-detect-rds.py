@@ -224,12 +224,12 @@ def save_list_to_jsonl(data_list, file_path):
             f.write(json.dumps(item) + '\n')
 
 def process_single_table(host, port, username, password, db_name, table_name, 
-                      region_name, db_identifier, source_type, sample_rate, limit, delay, results):
+                      region_name, db_identifier, db_type, sample_rate, limit, delay, results):
     """
     Process a single table for PII detection
     """
     result = {}
-    result['source_type'] = source_type  # 'RDS' or 'Aurora'
+    result['source_type'] = db_type.upper()  # 'RDS' or 'AURORA'
     result['region'] = region_name
     result['db_identifier'] = db_identifier
     result['db_name'] = db_name
@@ -263,7 +263,7 @@ def process_single_table(host, port, username, password, db_name, table_name,
             results.append(result.copy())
 
 def process_database(host, port, username, password, db_name, 
-                   region_name, db_identifier, source_type, sample_rate, limit, delay, results):
+                   region_name, db_identifier, db_type, sample_rate, limit, delay, results):
     """
     Process all tables in a database for PII detection
     """
@@ -272,7 +272,7 @@ def process_database(host, port, username, password, db_name,
     for table in table_list:
         table_name = table[0]
         process_single_table(host, port, username, password, db_name, table_name, 
-                          region_name, db_identifier, source_type, sample_rate, limit, 
+                          region_name, db_identifier, db_type, sample_rate, limit, 
                           delay, results)
         time.sleep(delay)
 
@@ -317,12 +317,10 @@ def main():
             # For Aurora DB clusters
             response = rds_client.describe_db_clusters(DBClusterIdentifier=db_identifier)
             db_endpoint = response['DBClusters'][0]['ReaderEndpoint']
-            source_type = 'Aurora'
         else:
             # For RDS DB instances
             response = rds_client.describe_db_instances(DBInstanceIdentifier=db_identifier)
             db_endpoint = response['DBInstances'][0]['Endpoint']['Address']
-            source_type = 'RDS'
     except ClientError as e:
         print(f"Error retrieving database information: {e}")
         return
@@ -356,7 +354,7 @@ def main():
 
     # Prepare summary information for confirmation
     print("\nPII Detection Summary:")
-    print(f"- DB Type: {source_type}")
+    print(f"- DB Type: {db_type.upper()}")
     print(f"- DB Identifier: {db_identifier}")
     print(f"- DB Endpoint: {db_endpoint}")
     print(f"- DB Port: {port}")
@@ -384,12 +382,12 @@ def main():
         # If specific table_name is also provided
         if table_name:
             process_single_table(host, port, username, password, db_name, table_name, 
-                                region_name, db_identifier, source_type, sample_rate, limit, 
+                                region_name, db_identifier, db_type, sample_rate, limit, 
                                 delay, results)
         else:
             # Process all tables in the specified database
             process_database(host, port, username, password, db_name, 
-                           region_name, db_identifier, source_type, sample_rate, limit, 
+                           region_name, db_identifier, db_type, sample_rate, limit, 
                            delay, results)
     else:
         # Get list of databases and process all
@@ -398,7 +396,7 @@ def main():
             # Skip system databases
             if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]:
                 process_database(host, port, username, password, db[0], 
-                               region_name, db_identifier, source_type, sample_rate, limit, 
+                               region_name, db_identifier, db_type, sample_rate, limit, 
                                delay, results)
 
     # Save results to JSONL file
