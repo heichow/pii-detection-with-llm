@@ -148,8 +148,7 @@ The secret should have this format:
 ```json
 {
   "username": "your-db-username",
-  "password": "your-db-password",
-  "port": 3306
+  "password": "your-db-password"
 }
 ```
 
