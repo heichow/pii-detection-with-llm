@@ -3,6 +3,7 @@
 PII Detection for RDS/Aurora Databases
 
 This script scans RDS/Aurora databases for PII data using Amazon Bedrock.
+It supports both Aurora DB clusters and standard RDS DB instances.
 """
 
 import mysql.connector 
@@ -223,14 +224,14 @@ def save_list_to_jsonl(data_list, file_path):
             f.write(json.dumps(item) + '\n')
 
 def process_single_table(host, port, username, password, db_name, table_name, 
-                      region_name, db_cluster_identifier, sample_rate, limit, delay, results):
+                      region_name, db_identifier, sample_rate, limit, delay, results):
     """
     Process a single table for PII detection
     """
     result = {}
-    result['source_type'] = 'Aurora'
+    result['source_type'] = source_type  # 'RDS' or 'Aurora' set in main()
     result['region'] = region_name
-    result['db_cluster_identifier'] = db_cluster_identifier
+    result['db_identifier'] = db_identifier
     result['db_name'] = db_name
     result['table_name'] = table_name
     
@@ -262,7 +263,7 @@ def process_single_table(host, port, username, password, db_name, table_name,
             results.append(result.copy())
 
 def process_database(host, port, username, password, db_name, 
-                   region_name, db_cluster_identifier, sample_rate, limit, delay, results):
+                   region_name, db_identifier, sample_rate, limit, delay, results):
     """
     Process all tables in a database for PII detection
     """
@@ -271,26 +272,29 @@ def process_database(host, port, username, password, db_name,
     for table in table_list:
         table_name = table[0]
         process_single_table(host, port, username, password, db_name, table_name, 
-                          region_name, db_cluster_identifier, sample_rate, limit, 
+                          region_name, db_identifier, sample_rate, limit, 
                           delay, results)
         time.sleep(delay)
 
 def main():
     parser = argparse.ArgumentParser(description='PII Detection for RDS/Aurora Databases')
-    parser.add_argument('--db-cluster-identifier', required=True, help='RDS/Aurora DB cluster identifier')
+    parser.add_argument('--db-identifier', required=True, help='RDS DB instance identifier or Aurora DB cluster identifier')
+    parser.add_argument('--db-type', choices=['rds', 'aurora'], required=True, help='Type of database: "rds" for RDS DB instance, "aurora" for Aurora DB cluster')
+    parser.add_argument('--port', type=int, default=3306, help='Database port (default: 3306)')
     parser.add_argument('--secret-name', required=True, help='AWS Secrets Manager secret name containing database credentials')
     parser.add_argument('--region-name', default='ap-southeast-1', help='AWS region name (default: ap-southeast-1)')
     parser.add_argument('--db-name', help='Specific database name to scan (optional)')
     parser.add_argument('--table-name', help='Specific table name to scan (requires --db-name)')
     parser.add_argument('--output', default='pii-detect-rds.jsonl', help='Output file path (default: pii-detect-rds.jsonl)')
     parser.add_argument('--sample-rate', type=float, default=0.2, help='Fraction of records to sample per table (default: 0.2)')
-    parser.add_argument('--limit', type=int, default=10000, help='Maximum number of records to sample per table (default: 100)')
+    parser.add_argument('--limit', type=int, default=10000, help='Maximum number of records to sample per table (default: 10000)')
     parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
-    
     
     args = parser.parse_args()
     
-    db_cluster_identifier = args.db_cluster_identifier
+    db_identifier = args.db_identifier
+    db_type = args.db_type
+    db_port = args.port
     secret_name = args.secret_name
     region_name = args.region_name
     db_name = args.db_name
@@ -305,17 +309,30 @@ def main():
         print("Error: --table-name requires --db-name to be specified")
         return
 
-    # Get RDS cluster information
+    # Get database endpoint based on db-type
     rds_client = boto3.client('rds', region_name=region_name)
-    response = rds_client.describe_db_clusters(DBClusterIdentifier=db_cluster_identifier)
-    reader_endpoint = response['DBClusters'][0]['ReaderEndpoint']
+    
+    try:
+        if db_type == 'aurora':
+            # For Aurora DB clusters
+            response = rds_client.describe_db_clusters(DBClusterIdentifier=db_identifier)
+            db_endpoint = response['DBClusters'][0]['ReaderEndpoint']
+            source_type = 'Aurora'
+        else:
+            # For RDS DB instances
+            response = rds_client.describe_db_instances(DBInstanceIdentifier=db_identifier)
+            db_endpoint = response['DBInstances'][0]['Endpoint']['Address']
+            source_type = 'RDS'
+    except ClientError as e:
+        print(f"Error retrieving database information: {e}")
+        return
 
     # Get database credentials from Secrets Manager
     secret = get_secret(secret_name, region_name) 
 
     # Extract connection parameters from the secret
-    host = secret.get('host', reader_endpoint)
-    port = secret.get('port', 3306)
+    host = secret.get('host', db_endpoint)  # Use db_endpoint if host is not in the secret
+    port = secret.get('port', db_port)  # Use command-line port if not in secret
     username = secret.get('username')
     password = secret.get('password')
 
@@ -339,7 +356,10 @@ def main():
 
     # Prepare summary information for confirmation
     print("\nPII Detection Summary:")
-    print(f"- DB Cluster: {db_cluster_identifier}")
+    print(f"- DB Type: {source_type}")
+    print(f"- DB Identifier: {db_identifier}")
+    print(f"- DB Endpoint: {db_endpoint}")
+    print(f"- DB Port: {port}")
     print(f"- Region: {region_name}")
     print(f"- Sample Rate: {sample_rate}")
     print(f"- Sample Limit: {limit} records per table")
@@ -364,12 +384,12 @@ def main():
         # If specific table_name is also provided
         if table_name:
             process_single_table(host, port, username, password, db_name, table_name, 
-                                region_name, db_cluster_identifier, sample_rate, limit, 
+                                region_name, db_identifier, sample_rate, limit, 
                                 delay, results)
         else:
             # Process all tables in the specified database
             process_database(host, port, username, password, db_name, 
-                           region_name, db_cluster_identifier, sample_rate, limit, 
+                           region_name, db_identifier, sample_rate, limit, 
                            delay, results)
     else:
         # Get list of databases and process all
@@ -378,7 +398,7 @@ def main():
             # Skip system databases
             if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]:
                 process_database(host, port, username, password, db[0], 
-                               region_name, db_cluster_identifier, sample_rate, limit, 
+                               region_name, db_identifier, sample_rate, limit, 
                                delay, results)
 
     # Save results to JSONL file

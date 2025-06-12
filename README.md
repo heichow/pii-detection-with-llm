@@ -6,7 +6,7 @@ This repository contains tools for detecting Personally Identifiable Information
 
 The solution consists of two main scripts:
 
-1. `pii-detect-rds.py`: Scans RDS/Aurora databases for PII data
+1. `pii-detect-rds.py`: Scans RDS instances and Aurora clusters for PII data
 2. `pii-detect-s3.py`: Scans objects in S3 buckets for PII data
 
 Both scripts use Amazon Bedrock's Nova Pro model to analyze data and identify PII categories based on a predefined list.
@@ -52,7 +52,8 @@ The IAM user or role running these scripts needs the following permissions:
        {
          "Effect": "Allow",
          "Action": [
-           "rds:DescribeDBClusters"
+           "rds:DescribeDBClusters",
+           "rds:DescribeDBInstances"
          ],
          "Resource": "*"
        }
@@ -125,7 +126,7 @@ You need to request access to the Amazon Nova Pro model in your AWS account:
 
 To scan RDS/Aurora databases:
 
-1. Ensure the machine running the script has network connectivity to the RDS/Aurora Reader Endpoint
+1. Ensure the machine running the script has network connectivity to the RDS instance or Aurora cluster endpoint
 2. If the database is in a VPC:
    - Run the script from an EC2 instance in the same VPC, or
    - Set up VPC peering, a VPN connection, or AWS Direct Connect
@@ -170,14 +171,16 @@ The secret should have this format:
 ### Scanning RDS/Aurora Databases
 
 ```bash
-python pii-detect-rds.py --db-cluster-identifier <db-cluster-id> --secret-name <secret-name> [options]
+python pii-detect-rds.py --db-identifier <db-identifier> --db-type <rds|aurora> --secret-name <secret-name> [options]
 ```
 
 #### Required Parameters:
-- `--db-cluster-identifier`: RDS/Aurora DB cluster identifier
+- `--db-identifier`: RDS DB instance identifier or Aurora DB cluster identifier
+- `--db-type`: Type of database: "rds" for RDS DB instance, "aurora" for Aurora DB cluster
 - `--secret-name`: AWS Secrets Manager secret name containing database credentials
 
 #### Optional Parameters:
+- `--port`: Database port (default: 3306)
 - `--region-name`: AWS region name (default: ap-southeast-1)
 - `--db-name`: Specific database name to scan (optional)
 - `--table-name`: Specific table name to scan (requires --db-name)
@@ -188,19 +191,24 @@ python pii-detect-rds.py --db-cluster-identifier <db-cluster-id> --secret-name <
 
 #### Examples:
 
-Scan all databases in a cluster:
+Scan all databases in an Aurora cluster:
 ```bash
-python pii-detect-rds.py --db-cluster-identifier my-aurora-cluster --secret-name my-db-credentials --region-name us-west-2
+python pii-detect-rds.py --db-identifier my-aurora-cluster --db-type aurora --secret-name my-db-credentials --region-name us-west-2
+```
+
+Scan all databases in an RDS instance:
+```bash
+python pii-detect-rds.py --db-identifier my-rds-instance --db-type rds --secret-name my-db-credentials --region-name us-west-2
 ```
 
 Scan a specific database:
 ```bash
-python pii-detect-rds.py --db-cluster-identifier my-aurora-cluster --secret-name my-db-credentials --db-name my_database
+python pii-detect-rds.py --db-identifier my-rds-instance --db-type rds --secret-name my-db-credentials --db-name my_database
 ```
 
 Scan a specific table:
 ```bash
-python pii-detect-rds.py --db-cluster-identifier my-aurora-cluster --secret-name my-db-credentials --db-name my_database --table-name users
+python pii-detect-rds.py --db-identifier my-aurora-cluster --db-type aurora --secret-name my-db-credentials --db-name my_database --table-name users
 ```
 
 ### Scanning S3 Objects
@@ -247,12 +255,12 @@ Both scripts generate output in JSONL format (one JSON object per line). Each li
 - Token usage information
 - Timestamp
 
-Example output for RDS scanning:
+Example output for RDS/Aurora scanning:
 ```json
 {
-  "source_type": "Aurora",
+  "source_type": "RDS",
   "region": "us-west-2",
-  "db_cluster_identifier": "my-aurora-cluster",
+  "db_identifier": "my-rds-instance",
   "db_name": "my_database",
   "table_name": "users",
   "sample_size": 100,
