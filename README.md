@@ -170,12 +170,12 @@ The secret should have this format:
 ### Scanning RDS/Aurora Databases
 
 ```bash
-python pii-detect-rds.py --db-identifier <db-identifier> --db-type <rds|aurora> --secret-name <secret-name> [options]
+python pii-detect-rds.py --db-type <rds|aurora> --db-identifier <db-identifier> --secret-name <secret-name> [options]
 ```
 
 #### Required Parameters:
-- `--db-identifier`: RDS DB instance identifier or Aurora DB cluster identifier
 - `--db-type`: Type of database: "rds" for RDS DB instance, "aurora" for Aurora DB cluster
+- `--db-identifier`: RDS DB instance identifier or Aurora DB cluster identifier
 - `--secret-name`: AWS Secrets Manager secret name containing database credentials
 
 #### Optional Parameters:
@@ -192,22 +192,22 @@ python pii-detect-rds.py --db-identifier <db-identifier> --db-type <rds|aurora> 
 
 Scan all databases in an Aurora cluster:
 ```bash
-python pii-detect-rds.py --db-identifier my-aurora-cluster --db-type aurora --secret-name my-db-credentials --region-name us-west-2
+python pii-detect-rds.py --db-type aurora --db-identifier my-aurora-cluster --secret-name my-db-credentials --region-name us-west-2
 ```
 
 Scan all databases in an RDS instance:
 ```bash
-python pii-detect-rds.py --db-identifier my-rds-instance --db-type rds --secret-name my-db-credentials --region-name us-west-2
+python pii-detect-rds.py --db-type rds --db-identifier my-rds-instance --secret-name my-db-credentials --region-name us-west-2
 ```
 
 Scan a specific database:
 ```bash
-python pii-detect-rds.py --db-identifier my-rds-instance --db-type rds --secret-name my-db-credentials --db-name my_database
+python pii-detect-rds.py --db-type rds --db-identifier my-rds-instance --secret-name my-db-credentials --db-name my_database
 ```
 
 Scan a specific table:
 ```bash
-python pii-detect-rds.py --db-identifier my-aurora-cluster --db-type aurora --secret-name my-db-credentials --db-name my_database --table-name users
+python pii-detect-rds.py --db-type aurora --db-identifier my-aurora-cluster --secret-name my-db-credentials --db-name my_database --table-name users
 ```
 
 ### Scanning S3 Objects

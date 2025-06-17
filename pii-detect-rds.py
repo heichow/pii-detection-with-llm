@@ -278,8 +278,8 @@ def process_database(host, port, username, password, db_name,
 
 def main():
     parser = argparse.ArgumentParser(description='PII Detection for RDS/Aurora Databases')
-    parser.add_argument('--db-identifier', required=True, help='RDS DB instance identifier or Aurora DB cluster identifier')
     parser.add_argument('--db-type', choices=['rds', 'aurora'], required=True, help='Type of database: "rds" for RDS DB instance, "aurora" for Aurora DB cluster')
+    parser.add_argument('--db-identifier', required=True, help='RDS DB instance identifier or Aurora DB cluster identifier')
     parser.add_argument('--port', type=int, default=3306, help='Database port (default: 3306)')
     parser.add_argument('--secret-name', required=True, help='AWS Secrets Manager secret name containing database credentials')
     parser.add_argument('--region-name', default='ap-southeast-1', help='AWS region name (default: ap-southeast-1)')
@@ -292,8 +292,8 @@ def main():
     
     args = parser.parse_args()
     
-    db_identifier = args.db_identifier
     db_type = args.db_type
+    db_identifier = args.db_identifier
     db_port = args.port
     secret_name = args.secret_name
     region_name = args.region_name
