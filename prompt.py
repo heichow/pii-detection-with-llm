@@ -3,29 +3,30 @@ PII_LIST = """
 - ADDRESS: Address
 - PHONE_NUMBER: Personal phone number
 - EMAIL: Personal email address
-- GOVERNMENT_ID_NUMBER: Government-issued ID numbers
+- GOVERNMENT_ID_NUMBER: Government-issued ID numbers (eg. A1234567)
 - PASSPORT_NUMBER: Passport number
 - DRIVING_LICENSE_ID_NUMBER: Driving license identification number
 - FINANCIAL_ACCOUNT_NUMBER: Financial account numbers, such as bank account and credit card numbers
-- PROFILE_PICTURE_IMAGE_URL: Profile Picture as image URL
-- ID_CARD_IMAGE_URL: Identity card copy as image URL
-- DRIVING_LICENSE_IMAGE_URL: Driving license copy as image URL
+- PROFILE_PICTURE: Profile picture
+- PROFILE_PICTURE_IMAGE_URL: URL of Profile picture image file, but not the image itself
+- ID_CARD_IMAGE_URL: URL of Identity card copy image file, but not the image itself
+- DRIVING_LICENSE_IMAGE_URL: URL of Driving license copy image file, but not the image itself
 - BUSINESS_REGISTRATION: Business registration
-- BUSINESS_REGISTRATION_IMAGE_URL: Business registration copy as image URL
+- BUSINESS_REGISTRATION_IMAGE_URL: URL of Business registration copy image file, but not the image itself
 - TAX_REGISTRATION_NUMBER: Tax registration number
 - DATE_OF_BIRTH: Date of birth
 - IP_ADDRESS: IP address
 - VEHICLE_REGISTRATION_NUMBER: Vehicle registration number
 - CAR_PLATE_NUMBER: Car plate number
-- VEHICAL_REGISTRATION_IMAGE_URL: Vehicle registration number as image URL
-- CAR_PLATE_IMAGE_URL: Vehicle photo with car plate number as image URL
+- VEHICAL_REGISTRATION_IMAGE_URL: URL of Vehicle registration number image file, but not the image itself
+- CAR_PLATE_IMAGE_URL: URL of Vehicle photo image file with car plate number, but not the image itself
 - DRIVER_PROFILE_PHOTO: Driver profile photo
 - LATITUDE_LONGITUDE: Geographical location
 - COOKIES: Cookies and tracking identifiers
-- DRIVER_FACE_VERIFICATION_IMAGE_URL: Driver's face verification as image URL
+- DRIVER_FACE_VERIFICATION_IMAGE_URL: URL of Driver's face verification image file, but not the image itself
 - Device_ID: Device ID or MAC address
 - VEHICLE_INSURANCE: Vehicle insurance
-- VEHICLE_INSURANCE_IMAGE_URL: Vehicle insurance information copy as image URL
+- VEHICLE_INSURANCE_IMAGE_URL: URL of Vehicle insurance information copy image file, but not the image itself
 - USER_ID: User in-app ID
 - DRIVER_ID: Driver in-app ID
 - PASSWORD: Password
