@@ -3,11 +3,11 @@ PII_LIST = """
 - ADDRESS: Address
 - PHONE_NUMBER: Personal phone number
 - EMAIL: Personal email address
-- GOVERNMENT_IDENTIFICATION_NUMBER: Government-issued ID numbers
+- GOVERNMENT_ID_NUMBER: Government-issued ID numbers
 - PASSPORT_NUMBER: Passport number
-- DRIVING_LICENSE_IDENTIFICATION_NUMBER: Driving license identification number
+- DRIVING_LICENSE_ID_NUMBER: Driving license identification number
 - FINANCIAL_ACCOUNT_NUMBER: Financial account numbers, such as bank account and credit card numbers
-- PROFILE_PICTURE: Profile Picture
+- PROFILE_PICTURE_IMAGE_URL: Profile Picture as image URL
 - ID_CARD_IMAGE_URL: Identity card copy as image URL
 - DRIVING_LICENSE_IMAGE_URL: Driving license copy as image URL
 - BUSINESS_REGISTRATION: Business registration
@@ -17,7 +17,7 @@ PII_LIST = """
 - IP_ADDRESS: IP address
 - VEHICLE_REGISTRATION_NUMBER: Vehicle registration number
 - CAR_PLATE_NUMBER: Car plate number
-- VEHICAL_REGISTRATION_NUMBER_IMAGE_URL: Vehicle registration number as image URL
+- VEHICAL_REGISTRATION_IMAGE_URL: Vehicle registration number as image URL
 - CAR_PLATE_IMAGE_URL: Vehicle photo with car plate number as image URL
 - DRIVER_PROFILE_PHOTO: Driver profile photo
 - LATITUDE_LONGITUDE: Geographical location
