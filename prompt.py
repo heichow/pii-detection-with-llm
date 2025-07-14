@@ -1,79 +1,35 @@
 PII_LIST = """
-Personal Data
-- Full name: NAME
-- Birth date: DATE_OF_BIRTH
-- Mailing address: ADDRESS
-- Email address: EMAIL
-- Phone number: PHONE_NUMBER
-- Profile Photo: PROFILE_PHOTO
-- Driver license: DRIVER_LICENSE
-- National identification number: NATIONAL_IDENTIFICATION_NUMBER
-- Passport number: PASSPORT_NUMBER
-- Social Security number (SSN): SOCIAL_SECURITY_NUMBER
-- Global Positioning System (GPS) coordinates: LATITUDE_LONGITUDE
-- National Insurance Number (NINO): NATIONAL_INSURANCE_NUMBER
-- Taxpayer identification or reference number: TAX_IDENTIFICATION_NUMBER
-
-Contact & Account Data
-- Username: USERNAME
-- Password with hashing: PASSWORD
-- Language preference: LANGUAGE_PREFERENCE
-- Communication preference: COMMUNCATION_PREFERENCE
-
-Location & Travel Data
-- Global Positioning System (GPS) coordinates: LATITUDE_LONGITUDE
-- Pickup and drop-off addresses: DELIVERY_ADDRESS
-- Trip distance: TRIP_DISTANCE
-- Trip duration: TRIP_DURATION
-- Location history: LOCATION_HISTORY
-- Frequent destinations (e.g. home, work): FREQUENT_DESTINATION
-
-Payment & Financial Data
-- Bank account: BANK_ACCOUNT_NUMBER
-- Credit Card Number: CREDIT_CARD_NUMBER
-- Billing address: BILLING_ADDRESS
-- Transaction history: TRANSACTION_HISTORY
-- Invoice and receipts: INVOICE
-- Refund records: REFUND_RECORD
-- Payment method preferences: PAYMENT_PREFERENCE
-
-Device & Technical Data
-- IP address: IP_ADDRESS
-- Device ID (e.g. IMEI): DEVICE_ID
-- Device type and operating system: DEVICE_TYPE
-- App version and mobile carrier: 
-- Cookies and tracking identifiers: COOKIES
-- Logs and app usage metrics: APP_LOG_AND_METRICS
-
-Behavioral & Usage Data
-- Ride ratings (given and received): RIDE_RATING
-- Complaints and feedback: USER_FEEDBACK
-- Ride frequency and timing: RIDE_FREQUENCY
-- Promotion or discount usage: PROMOTION_OR_DISCOUNT
-- In-app navigation behavior: APP_EVENT
-
-Communication Data
-- Chat messages with driver: DRIVER_CHAT_MESSAGES
-- Chat messages with support: SUPPORT_CHAT_MESSAGES
-- Voice calls (if recorded or logged): VOICE_CALL_LOG
-- Email and in-app support messages: EMAIL_MESSAGES
-
-Driver-Specific Data
-- Vehicle identification number: VEHICLE_IDENTIFICATION_NUMBER
-- Vehicle Insurance: VEHICLE_INSURANCE
-- Driving history and ratings: DRIVER_RATING
-- Earnings and tax information: DRIVER_INCOME_AND_TAX
-- Background check results: BACKGROUND_CHECK_RESULT
-
-Third-Party or Emergency Contact Data
-- Contact name and phone: EMERGENCY_CONTACT
-- Referrals or invited friends: REFERRAL
-
-Special Category Data 
-- Sex (e.g. M, F): SEX 
-- Health insurance or medical identification number: HEALTH_INSURANCE_NUMBER
-- Disability: DISABILITY
-- Criminal records: CRIMINAL_RECORD
+- NAME: Name
+- ADDRESS: Address
+- PHONE_NUMBER: Personal phone number
+- EMAIL: Personal email address
+- GOVERNMENT_IDENTIFICATION_NUMBER: Government-issued ID numbers
+- PASSPORT_NUMBER: Passport number
+- DRIVING_LICENSE_IDENTIFICATION_NUMBER: Driving license identification number
+- FINANCIAL_ACCOUNT_NUMBER: Financial account numbers, such as bank account and credit card numbers
+- PROFILE_PICTURE: Profile Picture
+- ID_CARD_IMAGE_URL: Identity card copy as image URL
+- DRIVING_LICENSE_IMAGE_URL: Driving license copy as image URL
+- BUSINESS_REGISTRATION: Business registration
+- BUSINESS_REGISTRATION_IMAGE_URL: Business registration copy as image URL
+- TAX_REGISTRATION_NUMBER: Tax registration number
+- DATE_OF_BIRTH: Date of birth
+- IP_ADDRESS: IP address
+- VEHICLE_REGISTRATION_NUMBER: Vehicle registration number
+- CAR_PLATE_NUMBER: Car plate number
+- VEHICAL_REGISTRATION_NUMBER_IMAGE_URL: Vehicle registration number as image URL
+- CAR_PLATE_IMAGE_URL: Vehicle photo with car plate number as image URL
+- DRIVER_PROFILE_PHOTO: Driver profile photo
+- LATITUDE_LONGITUDE: Geographical location
+- COOKIES: Cookies and tracking identifiers
+- DRIVER_FACE_VERIFICATION_IMAGE_URL: Driver's face verification as image URL
+- Device_ID: Device ID or MAC address
+- VEHICLE_INSURANCE: Vehicle insurance
+- VEHICLE_INSURANCE_IMAGE_URL: Vehicle insurance information copy as image URL
+- USER_ID: User in-app ID
+- DRIVER_ID: Driver in-app ID
+- PASSWORD: Password
+- ORDER_ID: Order ID
 """
 
 SYSTEM_PROMPT = f"""You are the expert of data classification to organizing data into categories based on its sensitivity, importance, and risk levels. Strictly follow the PII list below to label the PII categories:

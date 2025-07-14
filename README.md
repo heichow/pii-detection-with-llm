@@ -297,6 +297,32 @@ Example output for S3 scanning:
 }
 ```
 
+For image files, the output includes bounding box coordinates for each detected PII element:
+```json
+{
+  "source_type": "S3",
+  "region": "us-west-2",
+  "bucket": "my-data-bucket",
+  "folder": "customer-data/",
+  "sample_size": 10,
+  "total_objects": 100,
+  "object_key": "customer-data/passport.png",
+  "file_type": "png",
+  "file_size": 512000,
+  "has_pii": true,
+  "pii_categories": ["NAME", "DATE_OF_BIRTH", "NATIONAL_IDENTIFICATION_NUMBER", "PROFILE_PHOTO"],
+  "pii_bounding_box": {
+    "NAME": [391, 182, 647, 809],
+    "DATE_OF_BIRTH": [65, 204, 280, 449],
+    "NATIONAL_IDENTIFICATION_NUMBER": [120, 350, 480, 410],
+    "PROFILE_PHOTO": [50, 50, 250, 250]
+  },
+  "input_token": 1856,
+  "output_token": 105,
+  "timestamp": "2025-06-12T04:00:00.000000"
+}
+```
+
 ## Limitations
 
 - The scripts use sampling to analyze data, so they may not detect all PII in very large datasets
