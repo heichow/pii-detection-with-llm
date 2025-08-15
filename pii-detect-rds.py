@@ -371,6 +371,26 @@ def main():
                 print(f"\nError: Table '{table_name}' does not exist in database '{db_name}'.")
                 return
 
+    # Count databases and tables for summary
+    if db_name and table_name:
+        # Single table scan
+        table_count = 1
+        db_count = 1
+    elif db_name:
+        # All tables in specific database
+        table_list = get_tables(host, port, username, password, db_name)
+        table_count = len(table_list)
+        db_count = 1
+    else:
+        # All tables in all databases
+        db_list = get_databases(host, port, username, password)
+        user_dbs = [db[0] for db in db_list if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]]
+        db_count = len(user_dbs)
+        table_count = 0
+        for db in user_dbs:
+            table_list = get_tables(host, port, username, password, db)
+            table_count += len(table_list)
+
     # Prepare summary information for confirmation
     print("\nPII Detection Summary:")
     print(f"- DB Type: {db_type.upper()}")
@@ -384,9 +404,9 @@ def main():
     if db_name and table_name:
         print(f"- Target: Single table '{table_name}' in database '{db_name}'")
     elif db_name:
-        print(f"- Target: All tables in database '{db_name}'")
+        print(f"- Target: All tables in database '{db_name}' ({table_count} tables)")
     else:
-        print(f"- Target: All tables in all user databases")
+        print(f"- Target: All tables in all user databases ({db_count} databases, {table_count} tables)")
     
     # Ask for confirmation
     confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
