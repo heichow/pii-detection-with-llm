@@ -55,123 +55,51 @@ def get_secret(secret_name, region_name="ap-southeast-1"):
             # If binary secret
             return json.loads(get_secret_value_response['SecretBinary'])
 
-def get_databases(host, port, username, password):
-    try:
-        # Connect to server
-        cnx = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=username,
-            password=password)       
-        # Get a cursor
-        cur = cnx.cursor()      
-        # Get the list of databases
-        cur.execute("SHOW DATABASES")
-        db_list = cur.fetchall()
+def get_databases(cnx):
+    cur = cnx.cursor()      
+    cur.execute("SHOW DATABASES")
+    db_list = cur.fetchall()
+    cur.close()
+    return db_list
 
-        return db_list
-        
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        # Close the connection
-        if 'cnx' in locals() and cnx:
-            cnx.close()
-            #print("Database connection closed.")
+def get_tables(cnx, db_name):
+    cnx.database = db_name
+    cur = cnx.cursor()        
+    cur.execute("SHOW TABLES")
+    table_list = cur.fetchall()
+    cur.close()
+    return table_list
 
-def get_tables(host, port, username, password, db_name):
-    try:
-        # Connect to server
-        cnx = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=username,
-            password=password,
-            database=db_name
-        )
-        # Get a cursor
-        cur = cnx.cursor()        
-        # Get the list of tables
-        cur.execute("SHOW TABLES")
-        table_list = cur.fetchall()
+def get_schema(cnx, db_name, table_name):
+    cnx.database = db_name
+    cur = cnx.cursor()
+    cur.execute(f"DESCRIBE {table_name}")
+    schema = cur.fetchall()
+    cur.close()
+    return schema
 
-        return table_list
-        
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        # Close the connection
-        if 'cnx' in locals() and cnx:
-            cnx.close()
-            #print("Database connection closed.")
+def get_sample_data(cnx, db_name, table_name, sample_rate=0.1, limit=100):
+    cnx.database = db_name
+    cur = cnx.cursor()
 
-def get_schema(host, port, username, password, db_name, table_name):
-    try:
-        # Connect to server
-        cnx = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=username,
-            password=password,
-            database=db_name
-        )
-        # Get a cursor
-        cur = cnx.cursor()
-        # Get the table schema
-        cur.execute(f"DESCRIBE {table_name}")
-        schema = cur.fetchall()
+    # Get total count of records
+    cur.execute(f"SELECT COUNT(*) FROM {table_name}")
+    total_count = cur.fetchone()[0]
+    
+    # Calculate how many records to sample
+    sample_size = min(max(1, total_count * sample_rate), limit)
+    
+    # Use MySQL's RAND() function for sampling
+    query = f"""
+        SELECT * FROM {table_name}
+        ORDER BY RAND()
+        LIMIT {sample_size}
+    """
+    cur.execute(query)
+    sample_data = cur.fetchall()
+    cur.close()
 
-        return schema
-        
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        # Close the connection
-        if 'cnx' in locals() and cnx:
-            cnx.close()
-            #print("Database connection closed.")
-
-def get_sample_data(host, port, username, password, db_name, table_name, sample_rate=0.1, limit=100):
-    try:
-        # Connect to server
-        cnx = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=username,
-            password=password,
-            database=db_name
-        )
-        # Get a cursor
-        cur = cnx.cursor()
-
-        """
-        Query a table with sampling
-        """
-        # Get total count of records
-        cur.execute(f"SELECT COUNT(*) FROM {table_name}")
-        total_count = cur.fetchone()[0]
-        
-        # Calculate how many records to sample
-        sample_size = min(max(1, total_count * sample_rate), limit)
-        
-        # Use MySQL's RAND() function for sampling
-        query = f"""
-            SELECT * FROM {table_name}
-            ORDER BY RAND()
-            LIMIT {sample_size}
-        """
-        cur.execute(query)
-        sample_data = cur.fetchall()
-
-        return sample_data, sample_size, total_count
-        
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        # Close the connection
-        if 'cnx' in locals() and cnx:
-            cnx.close()
-            #print("Database connection closed.")
+    return sample_data, sample_size, total_count
 
 def rds_detect_pii(sample_data, schema, region_name="ap-southeast-1"):
     try:
@@ -223,7 +151,7 @@ def save_list_to_jsonl(data_list, file_path):
             # Convert each item to a JSON string and write it with a newline
             f.write(json.dumps(item) + '\n')
 
-def process_single_table(host, port, username, password, db_name, table_name, 
+def process_single_table(cnx, db_name, table_name, 
                       region_name, db_identifier, db_type, sample_rate, limit, delay, results):
     """
     Process a single table for PII detection
@@ -236,8 +164,8 @@ def process_single_table(host, port, username, password, db_name, table_name,
     result['table_name'] = table_name
     
     # Get table schema and sample data
-    schema = get_schema(host, port, username, password, db_name, table_name)
-    sample_data, sample_size, total_count = get_sample_data(host, port, username, password, db_name, table_name, sample_rate, limit)
+    schema = get_schema(cnx, db_name, table_name)
+    sample_data, sample_size, total_count = get_sample_data(cnx, db_name, table_name, sample_rate, limit)
 
     if len(schema) > 0 and len(sample_data) > 0:
         result['sample_size'] = sample_size
@@ -262,16 +190,16 @@ def process_single_table(host, port, username, password, db_name, table_name,
             result['timestamp'] = datetime.now().isoformat()
             results.append(result.copy())
 
-def process_database(host, port, username, password, db_name, 
+def process_database(cnx, db_name, 
                    region_name, db_identifier, db_type, sample_rate, limit, delay, results):
     """
     Process all tables in a database for PII detection
     """
     # Get list of tables in the database
-    table_list = get_tables(host, port, username, password, db_name)
+    table_list = get_tables(cnx, db_name)
     for table in table_list:
         table_name = table[0]
-        process_single_table(host, port, username, password, db_name, table_name, 
+        process_single_table(cnx, db_name, table_name, 
                           region_name, db_identifier, db_type, sample_rate, limit, 
                           delay, results)
         time.sleep(delay)
@@ -354,93 +282,113 @@ def main():
         port = db_port
 
     results = []
+    cnx = None
     
-    # If db_name is provided, check if it exists
-    if db_name:
-        db_list = get_databases(host, port, username, password)
-        db_names = [db[0] for db in db_list]
-        if db_name not in db_names:
-            print(f"\nError: Database '{db_name}' does not exist.")
+    try:
+        # Create MySQL connection
+        cnx = mysql.connector.connect(
+            host=host,
+            port=port,
+            user=username,
+            password=password
+        )
+        
+        # If db_name is provided, check if it exists
+        if db_name:
+            db_list = get_databases(cnx)
+            db_names = [db[0] for db in db_list]
+            if db_name not in db_names:
+                print(f"\nError: Database '{db_name}' does not exist.")
+                return
+                
+            # If table_name is provided, check if it exists
+            if table_name:
+                table_list = get_tables(cnx, db_name)
+                table_names = [table[0] for table in table_list]
+                if table_name not in table_names:
+                    print(f"\nError: Table '{table_name}' does not exist in database '{db_name}'.")
+                    return
+
+        # Count databases and tables for summary
+        if db_name and table_name:
+            # Single table scan
+            table_count = 1
+            db_count = 1
+        elif db_name:
+            # All tables in specific database
+            table_list = get_tables(cnx, db_name)
+            table_count = len(table_list)
+            db_count = 1
+        else:
+            # All tables in all databases
+            db_list = get_databases(cnx)
+            user_dbs = [db[0] for db in db_list if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]]
+            db_count = len(user_dbs)
+            table_count = 0
+            for db in user_dbs:
+                table_list = get_tables(cnx, db)
+                table_count += len(table_list)
+
+        # Prepare summary information for confirmation
+        print("\nPII Detection Summary:")
+        print(f"- DB Type: {db_type.upper()}")
+        print(f"- DB Identifier: {db_identifier}")
+        print(f"- DB Endpoint: {db_endpoint}")
+        print(f"- DB Port: {port}")
+        print(f"- Region: {region_name}")
+        print(f"- Sample Rate: {sample_rate}")
+        print(f"- Sample Limit: {limit} records per table")
+        
+        if db_name and table_name:
+            print(f"- Target: Single table '{table_name}' in database '{db_name}'")
+        elif db_name:
+            print(f"- Target: All tables in database '{db_name}' ({table_count} tables)")
+        else:
+            print(f"- Target: All tables in all user databases ({db_count} databases, {table_count} tables)")
+        
+        # Ask for confirmation
+        confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
+        if confirm != 'y' and confirm != 'yes':
+            print("PII detection cancelled.")
             return
             
-        # If table_name is provided, check if it exists
-        if table_name:
-            table_list = get_tables(host, port, username, password, db_name)
-            table_names = [table[0] for table in table_list]
-            if table_name not in table_names:
-                print(f"\nError: Table '{table_name}' does not exist in database '{db_name}'.")
-                return
+        print("\nStarting PII detection...\n")
 
-    # Count databases and tables for summary
-    if db_name and table_name:
-        # Single table scan
-        table_count = 1
-        db_count = 1
-    elif db_name:
-        # All tables in specific database
-        table_list = get_tables(host, port, username, password, db_name)
-        table_count = len(table_list)
-        db_count = 1
-    else:
-        # All tables in all databases
-        db_list = get_databases(host, port, username, password)
-        user_dbs = [db[0] for db in db_list if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]]
-        db_count = len(user_dbs)
-        table_count = 0
-        for db in user_dbs:
-            table_list = get_tables(host, port, username, password, db)
-            table_count += len(table_list)
-
-    # Prepare summary information for confirmation
-    print("\nPII Detection Summary:")
-    print(f"- DB Type: {db_type.upper()}")
-    print(f"- DB Identifier: {db_identifier}")
-    print(f"- DB Endpoint: {db_endpoint}")
-    print(f"- DB Port: {port}")
-    print(f"- Region: {region_name}")
-    print(f"- Sample Rate: {sample_rate}")
-    print(f"- Sample Limit: {limit} records per table")
-    
-    if db_name and table_name:
-        print(f"- Target: Single table '{table_name}' in database '{db_name}'")
-    elif db_name:
-        print(f"- Target: All tables in database '{db_name}' ({table_count} tables)")
-    else:
-        print(f"- Target: All tables in all user databases ({db_count} databases, {table_count} tables)")
-    
-    # Ask for confirmation
-    confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
-    if confirm != 'y' and confirm != 'yes':
-        print("PII detection cancelled.")
-        return
-        
-    print("\nStarting PII detection...\n")
-
-    # If specific db_name is provided
-    if db_name:
-        # If specific table_name is also provided
-        if table_name:
-            process_single_table(host, port, username, password, db_name, table_name, 
-                                region_name, db_identifier, db_type, sample_rate, limit, 
-                                delay, results)
-        else:
-            # Process all tables in the specified database
-            process_database(host, port, username, password, db_name, 
-                           region_name, db_identifier, db_type, sample_rate, limit, 
-                           delay, results)
-    else:
-        # Get list of databases and process all
-        db_list = get_databases(host, port, username, password)
-        for db in db_list:
-            # Skip system databases
-            if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]:
-                process_database(host, port, username, password, db[0], 
+        # If specific db_name is provided
+        if db_name:
+            # If specific table_name is also provided
+            if table_name:
+                process_single_table(cnx, db_name, table_name, 
+                                    region_name, db_identifier, db_type, sample_rate, limit, 
+                                    delay, results)
+            else:
+                # Process all tables in the specified database
+                process_database(cnx, db_name, 
                                region_name, db_identifier, db_type, sample_rate, limit, 
                                delay, results)
+        else:
+            # Get list of databases and process all
+            db_list = get_databases(cnx)
+            for db in db_list:
+                # Skip system databases
+                if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]:
+                    process_database(cnx, db[0], 
+                                   region_name, db_identifier, db_type, sample_rate, limit, 
+                                   delay, results)
 
-    # Save results to JSONL file
-    save_list_to_jsonl(results, output_file)
-    print(f"Results saved to {output_file}")
+        # Save results to JSONL file
+        save_list_to_jsonl(results, output_file)
+        print(f"Results saved to {output_file}")
+        
+    except mysql.connector.Error as e:
+        print(f"MySQL Error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        # Close the connection gracefully
+        if cnx and cnx.is_connected():
+            cnx.close()
+            print("Database connection closed.")
 
 if __name__ == "__main__":
     main()
