@@ -170,13 +170,16 @@ The secret should have this format:
 ### Scanning RDS/Aurora Databases
 
 ```bash
-python pii-detect-rds.py --db-type <rds|aurora> --db-identifier <db-identifier> --secret-name <secret-name> [options]
+python pii-detect-rds.py --db-type <rds|aurora> --db-identifier <db-identifier> [authentication-options] [options]
 ```
 
 #### Required Parameters:
 - `--db-type`: Type of database: "rds" for RDS DB instance, "aurora" for Aurora DB cluster
 - `--db-identifier`: RDS DB instance identifier or Aurora DB cluster identifier
+
+#### Authentication Options (choose one):
 - `--secret-name`: AWS Secrets Manager secret name containing database credentials
+- `--username` and `--password`: Direct database credentials
 
 #### Optional Parameters:
 - `--port`: Database port (default: 3306)
@@ -208,6 +211,11 @@ python pii-detect-rds.py --db-type rds --db-identifier my-rds-instance --secret-
 Scan a specific table:
 ```bash
 python pii-detect-rds.py --db-type aurora --db-identifier my-aurora-cluster --secret-name my-db-credentials --db-name my_database --table-name users
+```
+
+Using direct credentials:
+```bash
+python pii-detect-rds.py --db-type rds --db-identifier my-rds-instance --username myuser --password mypass --region-name us-west-2
 ```
 
 ### Scanning S3 Objects

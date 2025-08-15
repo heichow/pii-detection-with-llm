@@ -3,7 +3,7 @@ PII_LIST = """
 - ADDRESS: Address
 - PHONE_NUMBER: Personal phone number
 - EMAIL: Personal email address
-- GOVERNMENT_ID_NUMBER: Government-issued ID numbers (eg. A1234567)
+- GOVERNMENT_ID_NUMBER: Government-issued ID numbers
 - PASSPORT_NUMBER: Passport number
 - DRIVING_LICENSE_ID_NUMBER: Driving license identification number
 - FINANCIAL_ACCOUNT_NUMBER: Financial account numbers, such as bank account and credit card numbers

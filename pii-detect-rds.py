@@ -281,7 +281,13 @@ def main():
     parser.add_argument('--db-type', choices=['rds', 'aurora'], required=True, help='Type of database: "rds" for RDS DB instance, "aurora" for Aurora DB cluster')
     parser.add_argument('--db-identifier', required=True, help='RDS DB instance identifier or Aurora DB cluster identifier')
     parser.add_argument('--port', type=int, default=3306, help='Database port (default: 3306)')
-    parser.add_argument('--secret-name', required=True, help='AWS Secrets Manager secret name containing database credentials')
+    
+    # Authentication options - either secret name or direct credentials
+    auth_group = parser.add_mutually_exclusive_group(required=True)
+    auth_group.add_argument('--secret-name', help='AWS Secrets Manager secret name containing database credentials')
+    auth_group.add_argument('--username', help='Database username (requires --password)')
+    parser.add_argument('--password', help='Database password (requires --username)')
+    
     parser.add_argument('--region-name', default='ap-southeast-1', help='AWS region name (default: ap-southeast-1)')
     parser.add_argument('--db-name', help='Specific database name to scan (optional)')
     parser.add_argument('--table-name', help='Specific table name to scan (requires --db-name)')
@@ -292,10 +298,20 @@ def main():
     
     args = parser.parse_args()
     
+    # Validate authentication arguments
+    if args.username and not args.password:
+        print("Error: --username requires --password")
+        return
+    if args.password and not args.username:
+        print("Error: --password requires --username")
+        return
+    
     db_type = args.db_type
     db_identifier = args.db_identifier
     db_port = args.port
     secret_name = args.secret_name
+    username = args.username
+    password = args.password
     region_name = args.region_name
     db_name = args.db_name
     table_name = args.table_name
@@ -325,14 +341,17 @@ def main():
         print(f"Error retrieving database information: {e}")
         return
 
-    # Get database credentials from Secrets Manager
-    secret = get_secret(secret_name, region_name) 
-
-    # Extract connection parameters from the secret
-    host = secret.get('host', db_endpoint)  # Use db_endpoint if host is not in the secret
-    port = secret.get('port', db_port)  # Use command-line port if not in secret
-    username = secret.get('username')
-    password = secret.get('password')
+    # Get database credentials - either from Secrets Manager or direct input
+    if secret_name:
+        secret = get_secret(secret_name, region_name)
+        host = secret.get('host', db_endpoint)
+        port = secret.get('port', db_port)
+        username = secret.get('username')
+        password = secret.get('password')
+    else:
+        # Use direct credentials
+        host = db_endpoint
+        port = db_port
 
     results = []
     
