@@ -35,10 +35,12 @@ The IAM user or role running these scripts needs the following permissions:
          "Effect": "Allow",
          "Action": [
            "bedrock:InvokeModel",
-           "bedrock:InvokeModelWithResponseStream",
-           "bedrock:Converse"
+           "bedrock:InvokeModelWithResponseStream"
          ],
-         "Resource": "arn:aws:bedrock:*:*:model/amazon.nova-pro-v1:0"
+         "Resource": [
+           "arn:aws:bedrock:*:*:inference-profile/*",
+           "arn:aws:bedrock:*::foundation-model/*"
+         ]
        }
      ]
    }
