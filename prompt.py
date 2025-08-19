@@ -3,7 +3,7 @@ PII_LIST = """
 - ADDRESS: Address
 - PHONE_NUMBER: Personal phone number
 - EMAIL: Personal email address
-- GOVERNMENT_ID_NUMBER: Government-issued ID numbers
+- NATIONAL_IDENTIFICATION_NUMBER: National identity number - a unique identifier used by the governments of many countries as a means of uniquely identifying their citizens or residents for the purposes of work, taxation, government benefits, health care, banking and other governmentally-related functions.
 - PASSPORT_NUMBER: Passport number
 - DRIVING_LICENSE_ID_NUMBER: Driving license identification number
 - FINANCIAL_ACCOUNT_NUMBER: Financial account numbers, such as bank account and credit card numbers
@@ -42,7 +42,7 @@ Return the PII result in JSON format following the example below:
 {{
     "has_pii": true,
     "pii_categories": ["NAME", "ADDRESS"]
-    "pii_schema_mapping": {{ "NAME": name, "ADDRESS": home_address }}
+    "pii_schema_mapping": {{ "NAME": [name], "ADDRESS": [home_address] }}
 }}
 
 Exclude pii_schema_mapping if no database schema is provided.
@@ -52,7 +52,7 @@ If the data is image, also return the bounding box in a list of [x1, y1, x2, y2]
 {{
     "has_pii": true,
     "pii_categories": ["NAME", "ADDRESS"]
-    "pii_bounding_box": {{ "NAME": [391, 182, 647, 809], "ADDRESS": [65, 204, 280, 449] }}
+    "pii_bounding_box": {{ "NAME": [[391, 182, 647, 809]], "ADDRESS": [[65, 204, 280, 449]] }}
 }}
 
 Do not return the PII value in the output. Do not return ```json at the beginning and ``` in the end of output.
