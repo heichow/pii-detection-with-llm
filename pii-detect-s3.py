@@ -154,14 +154,15 @@ def s3_detect_pii(s3_path, region_name="ap-southeast-1"):
         }
     ]
     system = [{ "text": SYSTEM_PROMPT }]
-    inf_params = {"maxTokens": 300, "topP": 0.1, "temperature": 0.3}
+    inf_params = {"maxTokens": 1024, "topP": 0.1, "temperature": 0.3}
     
     if file_support:
         try:
             response = client.converse(
                 modelId=model_id, messages=messages, system=system, inferenceConfig=inf_params
             )
-            return response       
+            return response     
+              
         except (ClientError, Exception) as e:
             error_msg = f"ERROR: Can't invoke '{model_id}'. Reason: {e}"
             print(error_msg)

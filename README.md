@@ -164,7 +164,7 @@ The secret should have this format:
 
 2. Install required Python packages:
    ```bash
-   pip install boto3 mysql-connector-python
+   pip install boto3 mysql-connector-python Pillow
    ```
 
 ## Usage
@@ -253,6 +253,25 @@ Adjust sampling rate:
 ```bash
 python pii-detect-s3.py --bucket-name my-data-bucket --sample-rate 0.1 --limit 50
 ```
+
+### Visualizing PII Bounding Boxes
+
+Use `pii-bounding-boxes.py` to visualize PII detection results on images:
+
+```bash
+python pii-bounding-boxes.py [--s3-pii-result <jsonl-file>] [--output-dir <output-directory>]
+```
+
+#### Optional Parameters:
+- `--s3-pii-result`: Path to JSONL file containing PII detection results (default: pii-detect-s3.jsonl)
+- `--output-dir`: Directory to save images with bounding boxes (default: current directory)
+
+#### Example:
+```bash
+python pii-bounding-boxes.py --s3-pii-result pii-detect-s3.jsonl --output-dir ./output-images
+```
+
+This script processes the JSONL output from S3 scanning and creates new images with bounding boxes drawn around detected PII elements.
 
 ## Output Format
 
