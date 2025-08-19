@@ -111,10 +111,8 @@ def s3_detect_pii(s3_path, region_name="ap-southeast-1"):
     """
     # Create a Bedrock Runtime client
     client = boto3.client("bedrock-runtime", region_name=region_name)
-    account_id = boto3.client('sts').get_caller_identity().get('Account')
 
     model_id = get_nova_model_id(region_name)
-    
     content = []
     
     file_support = False
@@ -128,8 +126,7 @@ def s3_detect_pii(s3_path, region_name="ap-southeast-1"):
                 "format": ext,
                 "source": {
                     "s3Location": { 
-                        "uri": s3_path,
-                        "bucketOwner" : account_id
+                        "uri": s3_path
                     }
                 },
             }
@@ -142,8 +139,7 @@ def s3_detect_pii(s3_path, region_name="ap-southeast-1"):
                 "name": "sample_doc",
                 "source": {
                     "s3Location": {
-                        "uri": s3_path,
-                        "bucketOwner" : account_id
+                        "uri": s3_path
                     }
                 },
             }
