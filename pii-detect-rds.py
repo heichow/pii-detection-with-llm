@@ -114,7 +114,8 @@ def rds_detect_pii(sample_data, schema, region_name="ap-southeast-1"):
         Table schema: 
         {schema}
     
-        Detect PII categories in the provided data below, and follow the instruction to return the result in JSON format.
+        Detect PII categories in the provided data and schema above, and follow the instruction to return the result in JSON format.
+        If the schema name is obviously a PII categories, such as user_id, please label no matter data exist or not.
         """
         
         messages = [

@@ -28,14 +28,15 @@ PII_LIST = """
 - MAC_ADDRESS: MAC address
 - VEHICLE_INSURANCE: Vehicle insurance
 - VEHICLE_INSURANCE_IMAGE_URL: URL of Vehicle insurance information copy image file, but not the image itself
-- USER_ID: User in-app ID
+- USER_ID: User in-app ID that will differentiate between different users.
 - DRIVER_ID: Driver in-app ID
 - PASSWORD: Password
 - ORDER_ID: Order ID
 """
 
-SYSTEM_PROMPT = f"""You are the expert of data classification to organizing data into categories based on its sensitivity, importance, and risk levels. Strictly follow the PII list below to label the PII categories:
+SYSTEM_PROMPT = f"""You are the expert of data classification to organizing data into categories based on its sensitivity, importance, and risk levels. 
 
+Strictly follow the PII list below to label the PII categories:
 {PII_LIST}
 
 Return the PII result in JSON format following the example below:
