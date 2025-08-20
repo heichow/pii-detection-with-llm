@@ -173,7 +173,8 @@ def process_single_table(cnx, db_name, table_name,
         result['total_row'] = total_count
         result['schema'] = [col[0] for col in schema]
         if debug:
-            result['sample_record'] = str(sample_data[0])
+            column_names = [col[0] for col in schema]
+            result['sample_record'] = dict(zip(column_names, sample_data[0]))
         
         # Detect PII in the sample data
         model_response = rds_detect_pii(str(sample_data), str(schema), region_name)
