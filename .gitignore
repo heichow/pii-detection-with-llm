@@ -1,5 +1,0 @@
-.DS_Store
-.venv/
-__pycache__/
-pii-detect-s3.jsonl
-pii-detect-rds.jsonl
