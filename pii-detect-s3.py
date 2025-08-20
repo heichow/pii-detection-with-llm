@@ -172,6 +172,31 @@ def s3_detect_pii(s3_path, region_name="ap-southeast-1"):
         print(error_msg)
         return error_msg
 
+def generate_presigned_url(bucket_name, object_key, region_name, expiration=3600):
+    """
+    Generate a presigned URL for S3 object access
+    
+    Args:
+        bucket_name (str): S3 bucket name
+        object_key (str): S3 object key
+        region_name (str): AWS region name
+        expiration (int): URL expiration time in seconds (default: 3600)
+        
+    Returns:
+        str: Presigned URL or None if error
+    """
+    try:
+        s3_client = boto3.client('s3', region_name=region_name)
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': object_key},
+            ExpiresIn=expiration
+        )
+        return presigned_url
+    except Exception as e:
+        print(f"Error generating presigned URL for {object_key}: {e}")
+        return None
+
 def save_list_to_jsonl(data_list, file_path):
     """
     Save a list of items to a JSONL file.
@@ -195,6 +220,7 @@ def main():
     parser.add_argument('--limit', type=int, default=100000, help='Maximum number of samples per folder (default: 100)')
     parser.add_argument('--output', default='pii-detect-s3.jsonl', help='Output file path (default: pii-detect-s3.jsonl)')
     parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
+    parser.add_argument('--debug', action='store_true', help='Include presigned URL in output (default: False)')
     
     args = parser.parse_args()
     
@@ -205,6 +231,7 @@ def main():
     limit = args.limit
     output_file = args.output
     delay = args.delay
+    debug = args.debug
 
     results = []
     sample_data = sample_s3_data_by_folder(bucket_name, prefix, sample_rate, limit)
@@ -247,6 +274,8 @@ def main():
             result['object_key'] = object_key
             result['file_type'] = ext
             result['file_size'] = sample_object['Size']
+            if debug:
+                result['presigned_url'] = generate_presigned_url(bucket_name, object_key, region_name)
             
             s3_path = f"s3://{bucket_name}/{object_key}" 
             model_response = s3_detect_pii(s3_path, region_name)

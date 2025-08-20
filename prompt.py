@@ -52,7 +52,6 @@ Return the PII result in JSON format following the example below:
     "pii_schema_mapping": {{ "NAME": [name], "DATE_OF_BIRTH": [date_of_birth] }}
 }}
 
-Exclude new_pii_categories if no PII category is created.
 Exclude pii_schema_mapping if no database schema is provided.
 
 If the data is image, also return the bounding box in a list of [x1, y1, x2, y2] of each PII category, following the example below:

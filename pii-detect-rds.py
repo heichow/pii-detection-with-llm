@@ -153,7 +153,7 @@ def save_list_to_jsonl(data_list, file_path):
             f.write(json.dumps(item) + '\n')
 
 def process_single_table(cnx, db_name, table_name, 
-                      region_name, db_identifier, db_type, sample_rate, limit, delay, results):
+                      region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
     """
     Process a single table for PII detection
     """
@@ -171,6 +171,8 @@ def process_single_table(cnx, db_name, table_name,
     if len(schema) > 0 and len(sample_data) > 0:
         result['sample_size'] = sample_size
         result['total_row'] = total_count
+        if debug:
+            result['sample_record'] = {'schema': schema, 'data': sample_data[0]}
         
         # Detect PII in the sample data
         model_response = rds_detect_pii(str(sample_data), str(schema), region_name)
@@ -192,7 +194,7 @@ def process_single_table(cnx, db_name, table_name,
             results.append(result.copy())
 
 def process_database(cnx, db_name, 
-                   region_name, db_identifier, db_type, sample_rate, limit, delay, results):
+                   region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
     """
     Process all tables in a database for PII detection
     """
@@ -202,7 +204,7 @@ def process_database(cnx, db_name,
         table_name = table[0]
         process_single_table(cnx, db_name, table_name, 
                           region_name, db_identifier, db_type, sample_rate, limit, 
-                          delay, results)
+                          delay, debug, results)
         time.sleep(delay)
 
 def main():
@@ -224,6 +226,7 @@ def main():
     parser.add_argument('--sample-rate', type=float, default=0.2, help='Fraction of records to sample per table (default: 0.2)')
     parser.add_argument('--limit', type=int, default=10000, help='Maximum number of records to sample per table (default: 10000)')
     parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
+    parser.add_argument('--debug', action='store_true', help='Include sample record in output (default: False)')
     
     args = parser.parse_args()
     
@@ -248,6 +251,7 @@ def main():
     sample_rate = args.sample_rate
     limit = args.limit
     delay = args.delay
+    debug = args.debug
     
     # Check if table_name is provided without db_name
     if table_name and not db_name:
@@ -361,12 +365,12 @@ def main():
             if table_name:
                 process_single_table(cnx, db_name, table_name, 
                                     region_name, db_identifier, db_type, sample_rate, limit, 
-                                    delay, results)
+                                    delay, debug, results)
             else:
                 # Process all tables in the specified database
                 process_database(cnx, db_name, 
                                region_name, db_identifier, db_type, sample_rate, limit, 
-                               delay, results)
+                               delay, debug, results)
         else:
             # Get list of databases and process all
             db_list = get_databases(cnx)
@@ -375,7 +379,7 @@ def main():
                 if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]:
                     process_database(cnx, db[0], 
                                    region_name, db_identifier, db_type, sample_rate, limit, 
-                                   delay, results)
+                                   delay, debug, results)
 
         # Save results to JSONL file
         save_list_to_jsonl(results, output_file)
