@@ -24,8 +24,7 @@ PII_LIST = """
 - LATITUDE_LONGITUDE: geographical location
 - COOKIES: cookies and tracking identifiers
 - DRIVER_FACE_VERIFICATION_IMAGE_URL: URL of Driver's face verification image file, but not the image itself
-- DEVICE_ID: a unique identifier assigned to a digital device, like a smartphone or tablet, to distinguish it from others. For Android devices, the Android ID is a 64-bit number (expressed as a hexadecimal string) unique to each combination of app-signing key, user, and device. For iPhones and iPads, the UDID (Unique Device Identifier), a 40-character alphanumeric string, was used before September 2018. Apple now uses the IDFA (Identifier for Advertisers), a 32-character hexadecimal identifier, or the IdentifierForVendor, which is unique to each app vendor. 
-- MAC_ADDRESS: MAC address
+- DEVICE_ID: a unique identifier assigned to a specific device, such as MAC address, Android device ID, iOS device ID
 - VEHICLE_INSURANCE: vehicle insurance
 - VEHICLE_INSURANCE_IMAGE_URL: URL of Vehicle insurance information copy image file, but not the image itself
 - USER_ID: user in-app ID that will differentiate between different users
