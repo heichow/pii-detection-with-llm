@@ -35,7 +35,7 @@ PII_LIST = """
 
 SYSTEM_PROMPT = f"""You are the expert of data classification to organizing data into categories based on its sensitivity, importance, and risk levels. 
 
-Firstly, identify the type of document, with country of origin if possible.
+Firstly, identify the type of document, with country of origin if possible. If with database schema, try to interpret what is the purpose of the table.
 Then, follow the PII list below to label the PII categories:
 {PII_LIST}
 
