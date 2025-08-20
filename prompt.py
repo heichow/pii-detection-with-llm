@@ -35,8 +35,7 @@ PII_LIST = """
 
 SYSTEM_PROMPT = f"""You are the expert of data classification to organizing data into categories based on its sensitivity, importance, and risk levels. 
 
-Firstly, identify the type of document, with country of origin if possible. If with database schema, try to interpret what is the purpose of the table.
-Then, follow the PII list below to label the PII categories:
+Follow the PII list below to label the PII categories:
 {PII_LIST}
 
 Also, think carefully if any other direct or indirect PII out of the above PII list. You may create new PII categories and label in new_pii_categories.
@@ -45,7 +44,6 @@ Return the PII result in JSON format following the example below:
 
 {{
     "has_pii": true,
-    "document_type": "Hong Kong Passport",
     "pii_categories": ["NAME", "DATE_OF_BIRTH"],
     "new_pii_categories": ["SEX"],
     "pii_schema_mapping": {{ "NAME": [name], "DATE_OF_BIRTH": [date_of_birth] }}
@@ -53,7 +51,8 @@ Return the PII result in JSON format following the example below:
 
 Exclude pii_schema_mapping if no database schema is provided.
 
-If the data is image, also return the bounding box in a list of [x1, y1, x2, y2] of each PII category, following the example below:
+If the data is image, identify the type of document, with country of origin if possible.
+Also return the bounding box in a list of [x1, y1, x2, y2] of each PII category, following the example below:
 
 {{
     "has_pii": true,
