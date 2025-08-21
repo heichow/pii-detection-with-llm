@@ -229,6 +229,7 @@ def main():
     parser.add_argument('--limit', type=int, default=10000, help='Maximum number of records to sample per table (default: 10000)')
     parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
     parser.add_argument('--debug', action='store_true', help='Include sample record in output (default: False)')
+    parser.add_argument('-y', '--yes', action='store_true', help='Bypass confirmation prompt (default: False)')
     
     args = parser.parse_args()
     
@@ -254,6 +255,7 @@ def main():
     limit = args.limit
     delay = args.delay
     debug = args.debug
+    bypass_confirmation = args.yes
     
     # Check if table_name is provided without db_name
     if table_name and not db_name:
@@ -353,11 +355,12 @@ def main():
         else:
             print(f"- Target: All tables in all user databases ({db_count} databases, {table_count} tables)")
         
-        # Ask for confirmation
-        confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
-        if confirm != 'y' and confirm != 'yes':
-            print("PII detection cancelled.")
-            return
+        # Ask for confirmation unless bypassed
+        if not bypass_confirmation:
+            confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
+            if confirm != 'y' and confirm != 'yes':
+                print("PII detection cancelled.")
+                return
             
         print("\nStarting PII detection...\n")
 

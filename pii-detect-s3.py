@@ -221,6 +221,7 @@ def main():
     parser.add_argument('--output', default='pii-detect-s3.jsonl', help='Output file path (default: pii-detect-s3.jsonl)')
     parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
     parser.add_argument('--debug', action='store_true', help='Include presigned URL in output (default: False)')
+    parser.add_argument('-y', '--yes', action='store_true', help='Bypass confirmation prompt (default: False)')
     
     args = parser.parse_args()
     
@@ -232,6 +233,7 @@ def main():
     output_file = args.output
     delay = args.delay
     debug = args.debug
+    bypass_confirmation = args.yes
 
     results = []
     sample_data = sample_s3_data_by_folder(bucket_name, prefix, sample_rate, limit)
@@ -248,11 +250,12 @@ def main():
     print(f"- Bucket: {bucket_name}")
     print(f"- Prefix: {prefix or '(root)'}")
     
-    # Ask for confirmation
-    confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
-    if confirm != 'y' and confirm != 'yes':
-        print("PII detection cancelled.")
-        return
+    # Ask for confirmation unless bypassed
+    if not bypass_confirmation:
+        confirm = input("\nDo you want to proceed with PII detection? (y/n): ").strip().lower()
+        if confirm != 'y' and confirm != 'yes':
+            print("PII detection cancelled.")
+            return
     
     print("\nStarting PII detection...\n")
     

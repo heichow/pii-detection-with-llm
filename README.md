@@ -192,6 +192,8 @@ python pii-detect-rds.py --db-type <rds|aurora> --db-identifier <db-identifier> 
 - `--sample-rate`: Fraction of records to sample per table (default: 0.2)
 - `--limit`: Maximum number of records to sample per table (default: 10000)
 - `--delay`: Delay between API calls in seconds (default: 5)
+- `--debug`: Include sample record in output (default: False)
+- `-y`, `--yes`: Bypass confirmation prompt (default: False)
 
 #### Examples:
 
@@ -236,6 +238,8 @@ python pii-detect-s3.py --bucket-name <bucket-name> [options]
 - `--limit`: Maximum number of samples per folder (default: 100000)
 - `--output`: Output file path (default: pii-detect-s3.jsonl)
 - `--delay`: Delay between API calls in seconds (default: 5)
+- `--debug`: Include presigned URL in output (default: False)
+- `-y`, `--yes`: Bypass confirmation prompt (default: False)
 
 #### Examples:
 
