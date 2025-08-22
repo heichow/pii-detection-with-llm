@@ -66,8 +66,8 @@ def process_pii_detections(jsonl_file, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process PII detections and draw bounding boxes on images')
-    parser.add_argument('--s3-pii-result', default='pii-detect-s3.jsonl', help='Path to the JSONL file containing PII detection results (default: pii-detect-s3.jsonl)')
+    parser.add_argument('--input', default='pii-detect-s3.jsonl', help='Path to the JSONL file containing PII detection results (default: pii-detect-s3.jsonl)')
     parser.add_argument('--output-dir', default='.', help='Directory to save images with bounding boxes (default: current directory)')
     
     args = parser.parse_args()
-    process_pii_detections(args.s3_pii_result, args.output_dir)
+    process_pii_detections(args.input, args.output_dir)

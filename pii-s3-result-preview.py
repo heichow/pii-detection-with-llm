@@ -21,13 +21,13 @@ def main():
     parser = argparse.ArgumentParser(description='Add presigned URLs to PII detection results')
     parser.add_argument('--input', default='pii-detect-s3.jsonl', help='Input JSONL file')
     parser.add_argument('--output', help='Output JSONL file (default: overwrites input)')
-    parser.add_argument('--region', default='ap-southeast-1', help='AWS region')
+    parser.add_argument('--region-name', default='eu-central-1', help='AWS region name (default: eu-central-1)')
     parser.add_argument('--expiration', type=int, default=3600, help='URL expiration in seconds')
     
     args = parser.parse_args()
     output_file = args.output or args.input
     
-    s3_client = boto3.client('s3', region_name=args.region)
+    s3_client = boto3.client('s3', region_name=args.region_name)
     
     updated_lines = []
     

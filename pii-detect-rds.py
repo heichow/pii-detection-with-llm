@@ -221,7 +221,7 @@ def main():
     auth_group.add_argument('--username', help='Database username (requires --password)')
     parser.add_argument('--password', help='Database password (requires --username)')
     
-    parser.add_argument('--region-name', default='ap-southeast-1', help='AWS region name (default: ap-southeast-1)')
+    parser.add_argument('--region-name', default='eu-central-1', help='AWS region name (default: eu-central-1)')
     parser.add_argument('--db-name', help='Specific database name to scan (optional)')
     parser.add_argument('--table-name', help='Specific table name to scan (requires --db-name)')
     parser.add_argument('--output', default='pii-detect-rds.jsonl', help='Output file path (default: pii-detect-rds.jsonl)')

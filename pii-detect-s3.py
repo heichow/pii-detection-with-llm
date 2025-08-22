@@ -214,7 +214,7 @@ def save_list_to_jsonl(data_list, file_path):
 def main():
     parser = argparse.ArgumentParser(description='PII Detection for S3 Objects')
     parser.add_argument('--bucket-name', required=True, help='S3 bucket name')
-    parser.add_argument('--region-name', default='ap-southeast-1', help='AWS region name (default: ap-southeast-1)')
+    parser.add_argument('--region-name', default='eu-central-1', help='AWS region name (default: eu-central-1)')
     parser.add_argument('--prefix', default='', help='S3 prefix to filter objects (default: empty string)')
     parser.add_argument('--sample-rate', type=float, default=0.2, help='Fraction of objects to sample per folder (default: 0.2)')
     parser.add_argument('--limit', type=int, default=100000, help='Maximum number of samples per folder (default: 100)')
