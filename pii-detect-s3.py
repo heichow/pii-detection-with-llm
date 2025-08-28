@@ -18,7 +18,7 @@ from prompt import SYSTEM_PROMPT
 NOVA_PRO_MODEL_ID = "amazon.nova-pro-v1:0"
 
 # Constants for Bedrock models
-def get_nova_model_id(region_name="ap-southeast-1"):
+def get_nova_model_id(region_name="eu-central-1"):
     """
     Get the appropriate Nova model ID based on the region name
     """
@@ -98,7 +98,7 @@ def sample_s3_data_by_folder(bucket_name, prefix='', sample_rate=0.1, limit=100)
 
     return sample_data
 
-def s3_detect_pii(s3_path, region_name="ap-southeast-1"):
+def s3_detect_pii(s3_path, region_name="eu-central-1"):
     """
     Detect PII in S3 objects using Amazon Bedrock.
     

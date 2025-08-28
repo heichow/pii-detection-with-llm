@@ -18,7 +18,7 @@ from prompt import SYSTEM_PROMPT
 NOVA_PRO_MODEL_ID = "amazon.nova-pro-v1:0"
 
 # Constants for Bedrock models
-def get_nova_model_id(region_name="ap-southeast-1"):
+def get_nova_model_id(region_name="eu-central-1"):
     """
     Get the appropriate Nova model ID based on the region name
     """
@@ -31,7 +31,7 @@ def get_nova_model_id(region_name="ap-southeast-1"):
     else:
         return f"eu.{NOVA_PRO_MODEL_ID}"  # Default to EU
 
-def get_secret(secret_name, region_name="ap-southeast-1"):
+def get_secret(secret_name, region_name="eu-central-1"):
     """
     Retrieve secret from AWS Secrets Manager
     """
@@ -101,7 +101,7 @@ def get_sample_data(cnx, db_name, table_name, sample_rate=0.1, limit=100):
 
     return sample_data, sample_size, total_count
 
-def rds_detect_pii(sample_data, schema, region_name="ap-southeast-1"):
+def rds_detect_pii(sample_data, schema, region_name="eu-central-1"):
     try:
         # Create a Bedrock Runtime client
         client = boto3.client("bedrock-runtime", region_name=region_name)
