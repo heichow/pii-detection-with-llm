@@ -29,7 +29,7 @@ def get_nova_model_id(region_name="ap-southeast-1"):
     elif region_name.startswith("us"):
         return f"us.{NOVA_PRO_MODEL_ID}"
     else:
-        return f"apac.{NOVA_PRO_MODEL_ID}"  # Default to APAC
+        return f"eu.{NOVA_PRO_MODEL_ID}"  # Default to EU
 
 def sample_s3_data_by_folder(bucket_name, prefix='', sample_rate=0.1, limit=100):
     """
