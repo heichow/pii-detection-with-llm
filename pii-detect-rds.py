@@ -87,7 +87,7 @@ def get_sample_data(cnx, db_name, table_name, sample_rate=0.1, limit=100):
     total_count = cur.fetchone()[0]
     
     # Calculate how many records to sample
-    sample_size = min(max(1, total_count * sample_rate), limit)
+    sample_size = min(max(1, round(total_count*sample_rate)), limit)
     
     # Use MySQL's RAND() function for sampling
     query = f"""
