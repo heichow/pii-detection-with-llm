@@ -29,7 +29,7 @@ PII_LIST = """
 - VEHICLE_INSURANCE_IMAGE_URL: URL of Vehicle insurance information copy image file, but not the image itself
 - USER_ID: user in-app ID that will differentiate between different users
 - DRIVER_ID: driver in-app ID that will differentiate between different drivers
-- PASSWORD: Password
+- PASSWORD: a secret word, phrase, or string of characters that provides a user with access to a protected system or service
 - ORDER_ID: Order ID
 """
 
