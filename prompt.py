@@ -40,7 +40,7 @@ Return the PII result in JSON format following the example below:
 {{
     "has_pii": true,
     "pii_categories": ["NAME", "DATE_OF_BIRTH"],
-    "new_pii_categories": [{"category": "GENDER", "reason": "it can be used, alone or in combination with other data, to indirectly identify an individual."],
+    "new_pii_categories": [{{"category": "GENDER", "reason": "it can be used, alone or in combination with other data, to indirectly identify an individual."}}],
     "pii_schema_mapping": {{ "NAME": ["name"], "DATE_OF_BIRTH": ["date_of_birth"] }}
 }}
 
@@ -53,7 +53,7 @@ Also return the bounding box in a list of [x1, y1, x2, y2] of each PII category,
     "has_pii": true,
     "document_type": "Hong Kong Passport",
     "pii_categories": ["NAME", "DATE_OF_BIRTH"],
-    "new_pii_categories": ["SEX"],
+    "new_pii_categories": [{{"category": "GENDER", "reason": "it can be used, alone or in combination with other data, to indirectly identify an individual."}}],
     "pii_bounding_box": {{ "NAME": [[391,182,647,809]], "DATE_OF_BIRTH": [[389,399,650,450]] }}
 }}
 
