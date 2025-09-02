@@ -125,7 +125,7 @@ def rds_detect_pii(sample_data, schema, region_name="eu-central-1"):
             }
         ]
         system = [{ "text": SYSTEM_PROMPT }]
-        inf_params = {"maxTokens": 1024, "topP": 0.1, "temperature": 0.3}
+        inf_params = {"maxTokens": 4096, "topP": 0.1, "temperature": 0.3}
         
         model_id = get_nova_model_id(region_name)
         response = client.converse(
