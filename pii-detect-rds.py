@@ -164,50 +164,94 @@ def process_single_table(cnx, db_name, table_name,
     result['db_name'] = db_name
     result['table_name'] = table_name
     
-    # Get table schema and sample data
-    schema = get_schema(cnx, db_name, table_name)
-    sample_data, sample_size, total_count = get_sample_data(cnx, db_name, table_name, sample_rate, limit)
+    try:
+        # Get table schema and sample data
+        schema = get_schema(cnx, db_name, table_name)
+        sample_data, sample_size, total_count = get_sample_data(cnx, db_name, table_name, sample_rate, limit)
 
-    if len(schema) > 0 and len(sample_data) > 0:
-        result['sample_size'] = sample_size
-        result['total_row'] = total_count
-        result['schema'] = [col[0] for col in schema]
-        if debug:
-            column_names = [col[0] for col in schema]
-            result['sample_record'] = str(dict(zip(column_names, sample_data[0])))
-        
-        # Detect PII in the sample data
-        model_response = rds_detect_pii(str(sample_data), str(schema), region_name)
-        if isinstance(model_response, dict):
-            pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
-            result.update(pii_result)
-            result['input_token'] = model_response['usage']['inputTokens']
-            result['output_token'] = model_response['usage']['outputTokens']
-            result['timestamp'] = datetime.now().isoformat()
+        if len(schema) > 0 and len(sample_data) > 0:
+            result['sample_size'] = sample_size
+            result['total_row'] = total_count
+            result['schema'] = [col[0] for col in schema]
+            if debug:
+                column_names = [col[0] for col in schema]
+                result['sample_record'] = str(dict(zip(column_names, sample_data[0])))
             
-            print(json.dumps(result, indent=2))
-            print(f"Input Token: {model_response['usage']['inputTokens']}")
-            print(f"Output Token: {model_response['usage']['outputTokens']}")
-    
-            results.append(result.copy())                        
-        elif isinstance(model_response, str):
-            result['error'] = model_response
+            # Detect PII in the sample data
+            model_response = rds_detect_pii(str(sample_data), str(schema), region_name)
+            if isinstance(model_response, dict):
+                pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
+                result.update(pii_result)
+                result['input_token'] = model_response['usage']['inputTokens']
+                result['output_token'] = model_response['usage']['outputTokens']
+                result['timestamp'] = datetime.now().isoformat()
+                
+                print(json.dumps(result, indent=2))
+                print(f"Input Token: {model_response['usage']['inputTokens']}")
+                print(f"Output Token: {model_response['usage']['outputTokens']}")
+        
+                results.append(result.copy())                        
+            elif isinstance(model_response, str):
+                result['error'] = model_response
+                result['timestamp'] = datetime.now().isoformat()
+                results.append(result.copy())
+        else:
+            # Handle case where table has no schema or data
+            result['error'] = f"Table '{table_name}' has no schema or sample data available"
             result['timestamp'] = datetime.now().isoformat()
+            print(f"Warning: Skipping table '{db_name}.{table_name}' - no schema or sample data available")
             results.append(result.copy())
+            
+    except mysql.connector.Error as e:
+        # Handle MySQL-specific errors
+        error_msg = f"MySQL error processing table '{db_name}.{table_name}': {e}"
+        print(f"Error: {error_msg}")
+        result['error'] = error_msg
+        result['timestamp'] = datetime.now().isoformat()
+        results.append(result.copy())
+        
+    except Exception as e:
+        # Handle any other unexpected errors
+        error_msg = f"Unexpected error processing table '{db_name}.{table_name}': {e}"
+        print(f"Error: {error_msg}")
+        result['error'] = error_msg
+        result['timestamp'] = datetime.now().isoformat()
+        results.append(result.copy())
 
 def process_database(cnx, db_name, 
                    region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
     """
     Process all tables in a database for PII detection
     """
-    # Get list of tables in the database
-    table_list = get_tables(cnx, db_name)
-    for table in table_list:
-        table_name = table[0]
-        process_single_table(cnx, db_name, table_name, 
-                          region_name, db_identifier, db_type, sample_rate, limit, 
-                          delay, debug, results)
-        time.sleep(delay)
+    try:
+        # Get list of tables in the database
+        table_list = get_tables(cnx, db_name)
+        print(f"Processing database '{db_name}' with {len(table_list)} tables...")
+        
+        for i, table in enumerate(table_list, 1):
+            table_name = table[0]
+            print(f"Processing table {i}/{len(table_list)}: {db_name}.{table_name}")
+            
+            try:
+                process_single_table(cnx, db_name, table_name, 
+                              region_name, db_identifier, db_type, sample_rate, limit, 
+                              delay, debug, results)
+            except Exception as e:
+                # Log the error but continue with the next table
+                print(f"Error processing table '{db_name}.{table_name}': {e}")
+                print(f"Continuing with remaining tables in database '{db_name}'...")
+                
+            # Add delay between table processing
+            if delay > 0 and i < len(table_list):  # Don't delay after the last table
+                time.sleep(delay)
+                
+    except mysql.connector.Error as e:
+        print(f"MySQL error accessing database '{db_name}': {e}")
+        print(f"Skipping database '{db_name}' and continuing with remaining databases...")
+        
+    except Exception as e:
+        print(f"Unexpected error processing database '{db_name}': {e}")
+        print(f"Skipping database '{db_name}' and continuing with remaining databases...")
 
 def main():
     parser = argparse.ArgumentParser(description='PII Detection for RDS/Aurora Databases')
@@ -368,23 +412,40 @@ def main():
         if db_name:
             # If specific table_name is also provided
             if table_name:
-                process_single_table(cnx, db_name, table_name, 
-                                    region_name, db_identifier, db_type, sample_rate, limit, 
-                                    delay, debug, results)
+                try:
+                    process_single_table(cnx, db_name, table_name, 
+                                        region_name, db_identifier, db_type, sample_rate, limit, 
+                                        delay, debug, results)
+                except Exception as e:
+                    print(f"Error processing table '{db_name}.{table_name}': {e}")
             else:
                 # Process all tables in the specified database
-                process_database(cnx, db_name, 
-                               region_name, db_identifier, db_type, sample_rate, limit, 
-                               delay, debug, results)
-        else:
-            # Get list of databases and process all
-            db_list = get_databases(cnx)
-            for db in db_list:
-                # Skip system databases
-                if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]:
-                    process_database(cnx, db[0], 
+                try:
+                    process_database(cnx, db_name, 
                                    region_name, db_identifier, db_type, sample_rate, limit, 
                                    delay, debug, results)
+                except Exception as e:
+                    print(f"Error processing database '{db_name}': {e}")
+        else:
+            # Get list of databases and process all
+            try:
+                db_list = get_databases(cnx)
+                user_dbs = [db[0] for db in db_list if db not in [('information_schema',), ('mysql',), ('performance_schema',), ('sys',)]]
+                
+                print(f"Processing {len(user_dbs)} user databases...")
+                for i, db_name in enumerate(user_dbs, 1):
+                    print(f"\nProcessing database {i}/{len(user_dbs)}: {db_name}")
+                    try:
+                        process_database(cnx, db_name, 
+                                       region_name, db_identifier, db_type, sample_rate, limit, 
+                                       delay, debug, results)
+                    except Exception as e:
+                        print(f"Error processing database '{db_name}': {e}")
+                        print(f"Continuing with remaining databases...")
+                        
+            except Exception as e:
+                print(f"Error retrieving database list: {e}")
+                print("Unable to continue with database processing.")
 
         # Save results to JSONL file
         save_list_to_jsonl(results, output_file)
