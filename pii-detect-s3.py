@@ -154,7 +154,7 @@ def s3_detect_pii(s3_path, region_name="eu-central-1"):
         }
     ]
     system = [{ "text": SYSTEM_PROMPT }]
-    inf_params = {"maxTokens": 1024, "topP": 0.1, "temperature": 0.3}
+    inf_params = {"maxTokens": 4096, "topP": 0.1, "temperature": 0.0}
     
     if file_support:
         try:
@@ -219,7 +219,7 @@ def main():
     parser.add_argument('--sample-rate', type=float, default=0.2, help='Fraction of objects to sample per folder (default: 0.2)')
     parser.add_argument('--limit', type=int, default=100000, help='Maximum number of samples per folder (default: 100)')
     parser.add_argument('--output', default='pii-detect-s3.jsonl', help='Output file path (default: pii-detect-s3.jsonl)')
-    parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
+    parser.add_argument('--delay', type=int, default=0, help='Delay between API calls in seconds (default: 0)')
     parser.add_argument('--debug', action='store_true', help='Include presigned URL in output (default: False)')
     parser.add_argument('-y', '--yes', action='store_true', help='Bypass confirmation prompt (default: False)')
     

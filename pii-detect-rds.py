@@ -11,6 +11,7 @@ import boto3
 import json
 import argparse
 import time
+import csv
 from botocore.exceptions import ClientError
 from datetime import datetime
 from prompt import SYSTEM_PROMPT
@@ -30,6 +31,59 @@ def get_nova_model_id(region_name="eu-central-1"):
         return f"us.{NOVA_PRO_MODEL_ID}"
     else:
         return f"eu.{NOVA_PRO_MODEL_ID}"  # Default to EU
+
+def load_pii_field_mappings(csv_file="pii-explicit-field.csv"):
+    """
+    Load PII field mappings from CSV file
+    Returns dict mapping field_name to pii_category
+    """
+    mappings = {}
+    try:
+        with open(csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if 'field_name' not in row or 'pii_category' not in row:
+                    print(f"Error: {csv_file} must have 'field_name' and 'pii_category' columns")
+                    return {}
+                if row['field_name'] and row['pii_category']:
+                    mappings[row['field_name'].lower()] = row['pii_category']
+    except FileNotFoundError:
+        print(f"Warning: {csv_file} not found. Rule-based PII detection disabled.")
+    except Exception as e:
+        print(f"Error loading {csv_file}: {e}")
+    return mappings
+
+def apply_rule_based_pii(pii_result, schema, pii_mappings):
+    """
+    Apply rule-based PII detection by matching schema fields to CSV mappings
+    """
+    if not pii_mappings or not schema:
+        return pii_result
+    
+    schema_fields = [col[0].lower() for col in schema]
+    
+    for field in schema_fields:
+        if field in pii_mappings:
+            pii_category = pii_mappings[field]
+            
+            # Add to pii_categories if not already present
+            if 'pii_categories' not in pii_result:
+                pii_result['pii_categories'] = []
+            if pii_category not in pii_result['pii_categories']:
+                pii_result['pii_categories'].append(pii_category)
+            
+            # Add to pii_schema_mapping
+            if 'pii_schema_mapping' not in pii_result:
+                pii_result['pii_schema_mapping'] = {}
+            if pii_category not in pii_result['pii_schema_mapping']:
+                pii_result['pii_schema_mapping'][pii_category] = []
+            if field not in pii_result['pii_schema_mapping'][pii_category]:
+                pii_result['pii_schema_mapping'][pii_category].append(field)
+            
+            # Set has_pii to true if PII found
+            pii_result['has_pii'] = True
+    
+    return pii_result
 
 def get_secret(secret_name, region_name="eu-central-1"):
     """
@@ -125,7 +179,7 @@ def rds_detect_pii(sample_data, schema, region_name="eu-central-1"):
             }
         ]
         system = [{ "text": SYSTEM_PROMPT }]
-        inf_params = {"maxTokens": 4096, "topP": 0.1, "temperature": 0.3}
+        inf_params = {"maxTokens": 4096, "topP": 0.1, "temperature": 0.0}
         
         model_id = get_nova_model_id(region_name)
         response = client.converse(
@@ -153,7 +207,7 @@ def save_list_to_jsonl(data_list, file_path):
             f.write(json.dumps(item) + '\n')
 
 def process_single_table(cnx, db_name, table_name, 
-                      region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
+                      region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results, pii_mappings):
     """
     Process a single table for PII detection
     """
@@ -181,6 +235,10 @@ def process_single_table(cnx, db_name, table_name,
             model_response = rds_detect_pii(str(sample_data), str(schema), region_name)
             if isinstance(model_response, dict):
                 pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
+                
+                # Apply rule-based PII detection
+                pii_result = apply_rule_based_pii(pii_result, schema, pii_mappings)
+                
                 result.update(pii_result)
                 result['input_token'] = model_response['usage']['inputTokens']
                 result['output_token'] = model_response['usage']['outputTokens']
@@ -219,7 +277,7 @@ def process_single_table(cnx, db_name, table_name,
         results.append(result.copy())
 
 def process_database(cnx, db_name, 
-                   region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
+                   region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results, pii_mappings):
     """
     Process all tables in a database for PII detection
     """
@@ -235,7 +293,7 @@ def process_database(cnx, db_name,
             try:
                 process_single_table(cnx, db_name, table_name, 
                               region_name, db_identifier, db_type, sample_rate, limit, 
-                              delay, debug, results)
+                              delay, debug, results, pii_mappings)
             except Exception as e:
                 # Log the error but continue with the next table
                 print(f"Error processing table '{db_name}.{table_name}': {e}")
@@ -271,7 +329,7 @@ def main():
     parser.add_argument('--output', default='pii-detect-rds.jsonl', help='Output file path (default: pii-detect-rds.jsonl)')
     parser.add_argument('--sample-rate', type=float, default=0.2, help='Fraction of records to sample per table (default: 0.2)')
     parser.add_argument('--limit', type=int, default=10000, help='Maximum number of records to sample per table (default: 10000)')
-    parser.add_argument('--delay', type=int, default=5, help='Delay between API calls in seconds (default: 5)')
+    parser.add_argument('--delay', type=int, default=0, help='Delay between API calls in seconds (default: 0)')
     parser.add_argument('--debug', action='store_true', help='Include sample record in output (default: False)')
     parser.add_argument('-y', '--yes', action='store_true', help='Bypass confirmation prompt (default: False)')
     
@@ -336,6 +394,11 @@ def main():
 
     results = []
     cnx = None
+    
+    # Load PII field mappings from CSV
+    pii_mappings = load_pii_field_mappings()
+    if pii_mappings:
+        print(f"Loaded {len(pii_mappings)} PII field mappings from CSV")
     
     try:
         # Create MySQL connection
@@ -415,7 +478,7 @@ def main():
                 try:
                     process_single_table(cnx, db_name, table_name, 
                                         region_name, db_identifier, db_type, sample_rate, limit, 
-                                        delay, debug, results)
+                                        delay, debug, results, pii_mappings)
                 except Exception as e:
                     print(f"Error processing table '{db_name}.{table_name}': {e}")
             else:
@@ -423,7 +486,7 @@ def main():
                 try:
                     process_database(cnx, db_name, 
                                    region_name, db_identifier, db_type, sample_rate, limit, 
-                                   delay, debug, results)
+                                   delay, debug, results, pii_mappings)
                 except Exception as e:
                     print(f"Error processing database '{db_name}': {e}")
         else:
@@ -438,7 +501,7 @@ def main():
                     try:
                         process_database(cnx, db_name, 
                                        region_name, db_identifier, db_type, sample_rate, limit, 
-                                       delay, debug, results)
+                                       delay, debug, results, pii_mappings)
                     except Exception as e:
                         print(f"Error processing database '{db_name}': {e}")
                         print(f"Continuing with remaining databases...")

@@ -171,6 +171,24 @@ The secret should have this format:
 
 ### Scanning RDS/Aurora Databases
 
+The RDS/Aurora scanner uses both AI-powered detection (Amazon Bedrock Nova Pro) and rule-based detection for comprehensive PII identification.
+
+#### Rule-Based PII Detection
+
+Create a CSV file named `pii-explicit-field.csv` in the same directory to define explicit field mappings:
+
+```csv
+field_name,pii_category
+user_id,USER_ID
+driver_id,DRIVER_ID
+customer_email,EMAIL
+phone,PHONE_NUMBER
+```
+
+The scanner will automatically load this file and match database schema field names (case-insensitive) to PII categories.
+
+#### Usage
+
 ```bash
 python pii-detect-rds.py --db-type <rds|aurora> --db-identifier <db-identifier> [authentication-options] [options]
 ```
