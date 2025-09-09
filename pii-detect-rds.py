@@ -222,10 +222,11 @@ def process_single_table(cnx, db_name, table_name,
         schema = get_schema(cnx, db_name, table_name)
         sample_data, sample_size, total_count = get_sample_data(cnx, db_name, table_name, sample_rate, limit)
 
-        if len(schema) > 0 and len(sample_data) > 0:
-            result['sample_size'] = sample_size
-            result['total_row'] = total_count
-            result['schema'] = [col[0] for col in schema]
+        result['schema'] = [col[0] for col in schema]
+        result['sample_size'] = sample_size
+        result['total_row'] = total_count
+
+        if len(sample_data) > 0:
             if debug:
                 column_names = [col[0] for col in schema]
                 result['sample_record'] = str(dict(zip(column_names, sample_data[0])))
@@ -254,9 +255,9 @@ def process_single_table(cnx, db_name, table_name,
                 results.append(result.copy())
         else:
             # Handle case where table has no schema or data
-            result['error'] = f"Table '{table_name}' has no schema or sample data available"
+            result['error'] = f"Table '{table_name}' has no sample data available"
             result['timestamp'] = datetime.now().isoformat()
-            print(f"Warning: Skipping table '{db_name}.{table_name}' - no schema or sample data available")
+            print(f"Warning: Skipping table '{db_name}.{table_name}' - no sample data available")
             results.append(result.copy())
             
     except mysql.connector.Error as e:
