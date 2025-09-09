@@ -7,6 +7,7 @@ This script scans S3 objects for PII data using Amazon Bedrock.
 
 import boto3
 import json
+import pandas as pd
 import random
 import time
 import argparse
@@ -98,7 +99,7 @@ def sample_s3_data_by_folder(bucket_name, prefix='', sample_rate=0.1, limit=100)
 
     return sample_data
 
-def s3_detect_pii(s3_path, region_name="eu-central-1"):
+def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=100):
     """
     Detect PII in S3 objects using Amazon Bedrock.
     
@@ -131,7 +132,7 @@ def s3_detect_pii(s3_path, region_name="eu-central-1"):
                 },
             }
         })
-    if ext in ['pdf', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'html', 'txt', 'md']:
+    if ext in ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'html', 'txt', 'md']:
         file_support = True
         content.append({
             "document": {
@@ -144,6 +145,33 @@ def s3_detect_pii(s3_path, region_name="eu-central-1"):
                 },
             }
         })
+    if ext in ['json', 'jsonl', 'csv']:
+        file_support = True
+        
+        match ext:
+            case 'json':
+                s3_file = pd.read_json(s3_path)
+            case 'jsonl':
+                s3_file = pd.read_json(s3_path, lines=True)
+            case 'csv':
+                s3_file = pd.read_csv(s3_path)
+
+        total_count = len(s3_file)
+        sample_size = min(max(1, round(total_count*sample_rate)), limit)
+        
+        sample_data = s3_file.sample(n=sample_size).values.tolist()
+        schema = s3_file.columns.tolist()
+        
+        prompt = f"""Here is the sample data and schema of a specific csv or json file.
+    
+        Sample Data:
+        {sample_data}
+        
+        Schema: 
+        {schema}
+        """
+        content.append({"text": prompt})
+    
     
     content.append({"text": "Detect PII categories in the provided data, and follow the instruction to return the result in JSON format."})
     
@@ -281,7 +309,7 @@ def main():
                 result['presigned_url'] = generate_presigned_url(bucket_name, object_key, region_name)
             
             s3_path = f"s3://{bucket_name}/{object_key}" 
-            model_response = s3_detect_pii(s3_path, region_name)
+            model_response = s3_detect_pii(s3_path, region_name, sample_rate, limit)
             if isinstance(model_response, dict):
                 pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
                 result.update(pii_result)
