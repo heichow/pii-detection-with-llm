@@ -201,7 +201,7 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
         }
     ]
     system = [{ "text": SYSTEM_PROMPT }]
-    inf_params = {"maxTokens": 4096, "topP": 0.1, "temperature": 0.0}
+    inf_params = {"maxTokens": 8192, "topP": 0.1, "temperature": 0.0}
     
     if file_support:
         try:
@@ -349,6 +349,8 @@ def main():
             if isinstance(model_response, dict):
                 pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
                 result.update(pii_result)
+                result['has_pii'] = len(pii_result['pii_categories']) > 0
+                result['confidence_score'] = sum(cat['confidence_score'] for cat in pii_result['pii_categories'].values()) / len(pii_result['pii_categories'])
                 result['input_token'] = model_response['usage']['inputTokens']
                 result['output_token'] = model_response['usage']['outputTokens']
                 result['timestamp'] = datetime.now().isoformat()
