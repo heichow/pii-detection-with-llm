@@ -12,11 +12,16 @@ import json
 import argparse
 import time
 import csv
+import re
 from botocore.exceptions import ClientError
 from datetime import datetime
 from prompt import SYSTEM_PROMPT
 
 NOVA_PRO_MODEL_ID = "amazon.nova-pro-v1:0"
+
+# Global variables for PII mappings
+PII_ATTRIBUTE_MAPPINGS = {}
+PII_REGEX_MAPPINGS = {}
 
 # Constants for Bedrock models
 def get_nova_model_id(region_name="eu-central-1"):
@@ -32,45 +37,146 @@ def get_nova_model_id(region_name="eu-central-1"):
     else:
         return f"eu.{NOVA_PRO_MODEL_ID}"  # Default to EU
 
-def load_pii_field_mappings(csv_file="pii-explicit-field.csv"):
+def load_pii_attribute_mappings(csv_file="rule-based-attribute-mapping.csv"):
     """
-    Load PII field mappings from CSV file
-    Returns dict mapping field_name to pii_category
+    Load PII attribute mappings from CSV file for rule-based detection
+    CSV format: pii_category, attribute_name
+    Returns dict mapping attribute_name to pii_category
     """
     mappings = {}
     try:
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
+            # Strip whitespace from column names
+            reader.fieldnames = [name.strip() if name else name for name in reader.fieldnames]
+            
             for row in reader:
-                if 'field_name' not in row or 'pii_category' not in row:
-                    print(f"Error: {csv_file} must have 'field_name' and 'pii_category' columns")
+                # Create a new row dict with stripped keys
+                clean_row = {k.strip(): v.strip() if v else v for k, v in row.items()}
+                
+                if 'pii_category' not in clean_row or 'attribute_name' not in clean_row:
+                    print(f"Error: {csv_file} must have 'pii_category' and 'attribute_name' columns")
+                    print(f"Debug: Available columns: {list(clean_row.keys())}")
                     return {}
-                if row['field_name'] and row['pii_category']:
-                    mappings[row['field_name'].lower()] = row['pii_category']
+                if clean_row['attribute_name'] and clean_row['pii_category']:
+                    mappings[clean_row['attribute_name'].lower()] = clean_row['pii_category']
     except FileNotFoundError:
         print(f"Warning: {csv_file} not found. Rule-based PII detection disabled.")
     except Exception as e:
         print(f"Error loading {csv_file}: {e}")
     return mappings
 
-def apply_rule_based_pii(pii_result, schema, pii_mappings):
+def load_pii_regex_mappings(tsv_file="rule-based-regex-mapping.tsv"):
     """
-    Apply rule-based PII detection by matching schema fields to CSV mappings
+    Load PII regex mappings from TSV file for rule-based detection
+    TSV format: pii_category	regex (tab-separated)
+    Returns dict mapping pii_category to compiled regex pattern
     """
-    if not pii_mappings or not schema:
+    mappings = {}
+    try:
+        with open(tsv_file, 'r', encoding='utf-8') as f:
+            # Read the first line to get headers
+            first_line = f.readline().strip()
+            if not first_line:
+                print(f"Error: {tsv_file} is empty")
+                return {}
+            
+            # Parse headers manually (tab-separated)
+            headers = [h.strip() for h in first_line.split('\t')]
+            
+            # Check if we have the required columns
+            if 'pii_category' not in headers or 'regex' not in headers:
+                print(f"Error: {tsv_file} must have 'pii_category' and 'regex' columns")
+                print(f"Found columns: {headers}")
+                return {}
+            
+            # Get column indices
+            pii_category_idx = headers.index('pii_category')
+            regex_idx = headers.index('regex')
+            
+            # Read remaining lines
+            for line_num, line in enumerate(f, start=2):
+                line = line.strip()
+                if not line:  # Skip empty lines
+                    continue
+                
+                # Split the line by tab
+                values = [v.strip() for v in line.split('\t')]
+                
+                # Make sure we have enough values
+                if len(values) <= max(pii_category_idx, regex_idx):
+                    print(f"Warning: Line {line_num} in {tsv_file} has insufficient columns, skipping")
+                    continue
+                
+                pii_category = values[pii_category_idx]
+                regex_pattern = values[regex_idx]
+                
+                # Skip if either value is empty
+                if not pii_category or not regex_pattern:
+                    print(f"Warning: Line {line_num} in {tsv_file} has empty values, skipping")
+                    continue
+                
+                try:
+                    # Compile the regex pattern
+                    compiled_pattern = re.compile(regex_pattern)
+                    mappings[pii_category] = compiled_pattern
+                    print(f"Loaded regex pattern for {pii_category}: {regex_pattern}")
+                except re.error as e:
+                    print(f"Warning: Invalid regex pattern on line {line_num} for {pii_category}: {e}")
+                    continue
+                    
+    except FileNotFoundError:
+        print(f"Warning: {tsv_file} not found. Regex-based PII detection disabled.")
+    except Exception as e:
+        print(f"Error loading {tsv_file}: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return mappings
+
+def apply_rule_based_pii(pii_result, schema, sample_data=None):
+    """
+    Apply rule-based PII detection by matching schema fields to CSV mappings and regex patterns
+    Updated to work with new PII result format where pii_categories is a dict with confidence scores
+    Supports:
+    1. Exact matching and substring matching (if schema field contains the PII field name)
+    2. Regex pattern matching against sample data
+    Uses global PII_ATTRIBUTE_MAPPINGS and PII_REGEX_MAPPINGS variables
+    """
+    global PII_ATTRIBUTE_MAPPINGS, PII_REGEX_MAPPINGS
+    if (not PII_ATTRIBUTE_MAPPINGS and not PII_REGEX_MAPPINGS) or not schema:
         return pii_result
     
     schema_fields = [col[0].lower() for col in schema]
     
+    # Rule-based PII detection on schema field name
     for field in schema_fields:
-        if field in pii_mappings:
-            pii_category = pii_mappings[field]
-            
-            # Add to pii_categories if not already present
+        matched_categories = []
+        
+        # Check for exact match first
+        if field in PII_ATTRIBUTE_MAPPINGS:
+            matched_categories.append((PII_ATTRIBUTE_MAPPINGS[field], field, "exact match"))
+        
+        # Check for substring matches (if schema field contains any PII field name)
+        for pii_field_name, pii_category in PII_ATTRIBUTE_MAPPINGS.items():
+            if pii_field_name != field and pii_field_name in field:
+                matched_categories.append((pii_category, pii_field_name, "substring match"))
+        
+        # Process all matched categories for this field
+        for pii_category, matched_field, match_type in matched_categories:
+            # Initialize pii_categories as dict if not present
             if 'pii_categories' not in pii_result:
-                pii_result['pii_categories'] = []
-            if pii_category not in pii_result['pii_categories']:
-                pii_result['pii_categories'].append(pii_category)
+                pii_result['pii_categories'] = {}
+            
+            # Determine confidence score based on match type
+            confidence_score = 1.0 if match_type == "exact match" else 0.8
+            reason = f"Rule-based detection: schema field '{field}' {match_type} with PII field '{matched_field}'"
+            
+            # Add to pii_categories with rule-based confidence and reason
+            pii_result['pii_categories'][pii_category] = {
+                "confidence_score": confidence_score,
+                "reason": reason
+            }
             
             # Add to pii_schema_mapping
             if 'pii_schema_mapping' not in pii_result:
@@ -82,6 +188,41 @@ def apply_rule_based_pii(pii_result, schema, pii_mappings):
             
             # Set has_pii to true if PII found
             pii_result['has_pii'] = True
+    
+    # Regex-based PII detection on sample data
+    if sample_data and PII_REGEX_MAPPINGS:
+        # Convert sample data to string format for regex matching
+        if isinstance(sample_data, (list, tuple)) and len(sample_data) > 0:
+            # sample_data is a list of tuples (rows), convert to list of strings
+            for row_idx, row in enumerate(sample_data):
+                for col_idx, value in enumerate(row):
+                    if value is not None:
+                        value_str = str(value)
+                        field_name = schema_fields[col_idx] if col_idx < len(schema_fields) else f"column_{col_idx}"
+                        
+                        # Test each regex pattern against the value
+                        for pii_category, regex_pattern in PII_REGEX_MAPPINGS.items():
+                            if regex_pattern.search(value_str):
+                                # Initialize pii_categories as dict if not present
+                                if 'pii_categories' not in pii_result:
+                                    pii_result['pii_categories'] = {}
+                                
+                                # Add to pii_categories with regex-based confidence and reason
+                                pii_result['pii_categories'][pii_category] = {
+                                    "confidence_score": 1.0,  # High confidence for regex matches
+                                    "reason": f"Regex-based detection: field '{field_name}' matches pattern for {pii_category}"
+                                }
+                                 
+                                # Add to pii_schema_mapping
+                                if 'pii_schema_mapping' not in pii_result:
+                                    pii_result['pii_schema_mapping'] = {}
+                                if pii_category not in pii_result['pii_schema_mapping']:
+                                    pii_result['pii_schema_mapping'][pii_category] = []
+                                if field_name not in pii_result['pii_schema_mapping'][pii_category]:
+                                    pii_result['pii_schema_mapping'][pii_category].append(field_name)
+                                
+                                # Set has_pii to true if PII found
+                                pii_result['has_pii'] = True
     
     return pii_result
 
@@ -178,7 +319,7 @@ def rds_detect_pii(sample_data, schema, region_name="eu-central-1"):
             }
         ]
         system = [{ "text": SYSTEM_PROMPT }]
-        inf_params = {"maxTokens": 4096, "topP": 0.1, "temperature": 0.0}
+        inf_params = {"maxTokens": 8192, "topP": 0.1, "temperature": 0.0}
         
         model_id = get_nova_model_id(region_name)
         response = client.converse(
@@ -206,7 +347,7 @@ def save_list_to_jsonl(data_list, file_path):
             f.write(json.dumps(item) + '\n')
 
 def process_single_table(cnx, db_name, table_name, 
-                      region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results, pii_mappings):
+                      region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
     """
     Process a single table for PII detection
     """
@@ -229,7 +370,9 @@ def process_single_table(cnx, db_name, table_name,
         if len(sample_data) > 0:
             if debug:
                 column_names = [col[0] for col in schema]
-                result['sample_record'] = str(dict(zip(column_names, sample_data[0])))
+                result['sample_record'] = []
+                for idx, data in enumerate(sample_data):
+                    result['sample_record'].append(str(dict(zip(column_names, sample_data[idx]))))
             
             # Detect PII in the sample data
             model_response = rds_detect_pii(str(sample_data), str(schema), region_name)
@@ -237,9 +380,11 @@ def process_single_table(cnx, db_name, table_name,
                 pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
                 
                 # Apply rule-based PII detection
-                pii_result = apply_rule_based_pii(pii_result, schema, pii_mappings)
+                pii_result = apply_rule_based_pii(pii_result, schema, sample_data)
                 
                 result.update(pii_result)
+                result['has_pii'] = len(pii_result['pii_categories']) > 0
+                result['confidence_score'] = sum(cat['confidence_score'] for cat in pii_result['pii_categories'].values()) / len(pii_result['pii_categories'])
                 result['input_token'] = model_response['usage']['inputTokens']
                 result['output_token'] = model_response['usage']['outputTokens']
                 result['timestamp'] = datetime.now().isoformat()
@@ -277,7 +422,7 @@ def process_single_table(cnx, db_name, table_name,
         results.append(result.copy())
 
 def process_database(cnx, db_name, 
-                   region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results, pii_mappings):
+                   region_name, db_identifier, db_type, sample_rate, limit, delay, debug, results):
     """
     Process all tables in a database for PII detection
     """
@@ -293,7 +438,7 @@ def process_database(cnx, db_name,
             try:
                 process_single_table(cnx, db_name, table_name, 
                               region_name, db_identifier, db_type, sample_rate, limit, 
-                              delay, debug, results, pii_mappings)
+                              delay, debug, results)
             except Exception as e:
                 # Log the error but continue with the next table
                 print(f"Error processing table '{db_name}.{table_name}': {e}")
@@ -395,10 +540,15 @@ def main():
     results = []
     cnx = None
     
-    # Load PII field mappings from CSV
-    pii_mappings = load_pii_field_mappings()
-    if pii_mappings:
-        print(f"Loaded {len(pii_mappings)} PII field mappings from CSV")
+    # Load PII mappings from CSV and TSV files into global variables
+    global PII_ATTRIBUTE_MAPPINGS, PII_REGEX_MAPPINGS
+    PII_ATTRIBUTE_MAPPINGS = load_pii_attribute_mappings()
+    PII_REGEX_MAPPINGS = load_pii_regex_mappings("rule-based-regex-mapping.tsv")
+    
+    if PII_ATTRIBUTE_MAPPINGS:
+        print(f"Loaded {len(PII_ATTRIBUTE_MAPPINGS)} PII attribute mappings from CSV")
+    if PII_REGEX_MAPPINGS:
+        print(f"Loaded {len(PII_REGEX_MAPPINGS)} PII regex patterns from TSV")
     
     try:
         # Create MySQL connection
@@ -478,7 +628,7 @@ def main():
                 try:
                     process_single_table(cnx, db_name, table_name, 
                                         region_name, db_identifier, db_type, sample_rate, limit, 
-                                        delay, debug, results, pii_mappings)
+                                        delay, debug, results)
                 except Exception as e:
                     print(f"Error processing table '{db_name}.{table_name}': {e}")
             else:
@@ -486,7 +636,7 @@ def main():
                 try:
                     process_database(cnx, db_name, 
                                    region_name, db_identifier, db_type, sample_rate, limit, 
-                                   delay, debug, results, pii_mappings)
+                                   delay, debug, results)
                 except Exception as e:
                     print(f"Error processing database '{db_name}': {e}")
         else:
@@ -501,7 +651,7 @@ def main():
                     try:
                         process_database(cnx, db_name, 
                                        region_name, db_identifier, db_type, sample_rate, limit, 
-                                       delay, debug, results, pii_mappings)
+                                       delay, debug, results)
                     except Exception as e:
                         print(f"Error processing database '{db_name}': {e}")
                         print(f"Continuing with remaining databases...")
