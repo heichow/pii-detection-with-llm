@@ -117,8 +117,25 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
     content = []
     
     file_support = False
-    ext = s3_path.split('.')[-1]
-    if ext=='jpg':
+
+    filename = s3_path.split('/')[-1]
+    # Check if it's a hidden file (starts with dot) or has no extension
+    if filename.startswith('.'):
+        # Hidden file - check if it has an extension after the initial dot
+        if filename.count('.') > 1:
+            # Hidden file with extension (e.g., .file.txt)
+            ext = filename.split('.')[-1]
+        else:
+            # Just a hidden file without extension (e.g., .gitignore)
+            ext = None
+    elif '.' not in filename:
+        # Regular file without extension
+        ext = None
+    else:
+        # Regular file with extension
+        ext = filename.split('.')[-1]
+    
+    if ext == 'jpg':
         ext = 'jpeg'
     if ext in ['png', 'jpeg', 'gif', 'webp']:
         file_support = True
@@ -145,7 +162,7 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
                 },
             }
         })
-    if ext in ['json', 'jsonl', 'csv']:
+    if ext in ['json', 'jsonl', 'csv', 'tsv']:
         file_support = True
         
         match ext:
@@ -155,6 +172,8 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
                 s3_file = pd.read_json(s3_path, lines=True)
             case 'csv':
                 s3_file = pd.read_csv(s3_path)
+            case 'tsv':
+                s3_file = pd.read_csv(s3_path, sep='\t')
 
         total_count = len(s3_file)
         sample_size = min(max(1, round(total_count*sample_rate)), limit)
@@ -301,7 +320,24 @@ def main():
         for sample_object in folder['sampled_objects']:
             object_key = sample_object['Key']
             print(object_key)
-            ext = object_key.split('.')[-1]
+            filename = object_key.split('/')[-1]
+            
+            # Check if it's a hidden file (starts with dot) or has no extension
+            if filename.startswith('.'):
+                # Hidden file - check if it has an extension after the initial dot
+                if filename.count('.') > 1:
+                    # Hidden file with extension (e.g., .file.txt)
+                    ext = filename.split('.')[-1]
+                else:
+                    # Just a hidden file without extension (e.g., .gitignore)
+                    ext = None
+            elif '.' not in filename:
+                # Regular file without extension
+                ext = None
+            else:
+                # Regular file with extension
+                ext = filename.split('.')[-1]
+            
             result['object_key'] = object_key
             result['file_type'] = ext
             result['file_size'] = sample_object['Size']
