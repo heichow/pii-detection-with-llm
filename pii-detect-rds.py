@@ -167,15 +167,11 @@ def apply_rule_based_pii(pii_result, schema, sample_data=None):
             # Initialize pii_categories as dict if not present
             if 'pii_categories' not in pii_result:
                 pii_result['pii_categories'] = {}
-            
-            # Determine confidence score based on match type
-            confidence_score = 1.0 if match_type == "exact match" else 0.8
-            reason = f"Rule-based detection: schema field '{field}' {match_type} with PII field '{matched_field}'"
-            
+
             # Add to pii_categories with rule-based confidence and reason
             pii_result['pii_categories'][pii_category] = {
-                "confidence_score": confidence_score,
-                "reason": reason
+                "confidence_score": 1.0,
+                "reason": f"Rule-based detection: schema field '{field}' {match_type} with PII field '{matched_field}'"
             }
             
             # Add to pii_schema_mapping

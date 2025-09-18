@@ -167,25 +167,69 @@ The secret should have this format:
    pip install boto3 mysql-connector-python Pillow
    ```
 
+3. Set up rule-based detection files (optional but recommended):
+
+   Create `rule-based-attribute-mapping.csv` for field name matching:
+   ```csv
+   pii_category,attribute_name
+   USER_ID,user_id
+   EMAIL,email
+   PHONE_NUMBER,phone
+   NAME,name
+   ```
+
+   Create `rule-based-regex-mapping.tsv` for data pattern matching:
+   ```tsv
+   pii_category	regex
+   EMAIL	^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+   PHONE	^\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$
+   SSN	^\d{3}-?\d{2}-?\d{4}$
+   ```
+
+   **Note**: The TSV file uses tab characters (`\t`) as separators, not spaces.
+
 ## Usage
 
 ### Scanning RDS/Aurora Databases
 
-The RDS/Aurora scanner uses both AI-powered detection (Amazon Bedrock Nova Pro) and rule-based detection for comprehensive PII identification.
+The RDS/Aurora scanner uses three complementary detection methods for comprehensive PII identification:
+
+1. **AI-powered detection**: Amazon Bedrock Nova Pro analyzes sample data and schema
+2. **Attribute-based rule detection**: Matches database field names to known PII patterns
+3. **Regex-based rule detection**: Analyzes actual data values using regex patterns
 
 #### Rule-Based PII Detection
 
-Create a CSV file named `pii-explicit-field.csv` in the same directory to define explicit field mappings:
+##### Attribute-Based Detection
+
+Create a CSV file named `rule-based-attribute-mapping.csv` to define explicit field name mappings:
 
 ```csv
-field_name,pii_category
-user_id,USER_ID
-driver_id,DRIVER_ID
-customer_email,EMAIL
-phone,PHONE_NUMBER
+pii_category,attribute_name
+USER_ID,user_id
+DRIVER_ID,driver_id
+EMAIL,customer_email
+PHONE_NUMBER,phone
+NAME,full_name
 ```
 
-The scanner will automatically load this file and match database schema field names (case-insensitive) to PII categories.
+The scanner supports both exact matching and substring matching. For example, if your CSV contains `email` and your database has a field named `customer_email`, it will be detected as a substring match.
+
+##### Regex-Based Detection
+
+Create a TSV file named `rule-based-regex-mapping.tsv` to define regex patterns for detecting PII in actual data values:
+
+```tsv
+pii_category	regex
+EMAIL	^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+PHONE	^\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$
+SSN	^\d{3}-?\d{2}-?\d{4}$
+CREDIT_CARD	^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})$
+```
+
+**Note**: Use TSV (tab-separated) format for regex patterns since they often contain commas that would break CSV parsing.
+
+The scanner will automatically load both files and apply all detection methods to provide comprehensive PII identification with confidence scores and detailed reasoning.
 
 #### Usage
 
@@ -297,15 +341,23 @@ This script processes the JSONL output from S3 scanning and creates new images w
 
 ## Output Format
 
-Both scripts generate output in JSONL format (one JSON object per line). Each line contains:
+Both scripts generate output in JSONL format (one JSON object per line). The output format has been enhanced to include confidence scores and detailed reasoning for each detected PII category.
 
-- Source information (database/table or S3 bucket/object)
-- Sample size and total count
-- PII detection results
-- Token usage information
-- Timestamp
+### Enhanced PII Detection Results
 
-Example output for RDS/Aurora scanning:
+Each detection result now includes:
+
+- **Source information**: Database/table or S3 bucket/object details
+- **Sample size and total count**: Statistics about data analyzed
+- **Enhanced PII detection results**: Categories with confidence scores and reasoning
+- **Schema mapping**: Which database fields contain which PII types
+- **Token usage information**: Bedrock API usage metrics
+- **Timestamp**: When the analysis was performed
+
+### RDS/Aurora Output Format
+
+Example output for RDS/Aurora scanning with the new enhanced format:
+
 ```json
 {
   "source_type": "RDS",
@@ -315,12 +367,31 @@ Example output for RDS/Aurora scanning:
   "table_name": "users",
   "sample_size": 100,
   "total_row": 5000,
+  "schema": ["user_id", "full_name", "email_address", "phone_number"],
   "has_pii": true,
-  "pii_categories": ["NAME", "EMAIL", "PHONE_NUMBER"],
+  "pii_categories": {
+    "NAME": {
+      "confidence_score": 1.0,
+      "reason": "Rule-based detection: schema field 'full_name' exact match with PII field 'name'; AI-based detection found names in sample data"
+    },
+    "EMAIL": {
+      "confidence_score": 0.9,
+      "reason": "Regex-based detection: field 'email_address' matches pattern for EMAIL; AI-based detection confirmed email addresses"
+    },
+    "PHONE_NUMBER": {
+      "confidence_score": 0.8,
+      "reason": "Rule-based detection: schema field 'phone_number' substring match with PII field 'phone'"
+    },
+    "USER_ID": {
+      "confidence_score": 1.0,
+      "reason": "Rule-based detection: schema field 'user_id' exact match with PII field 'user_id'"
+    }
+  },
   "pii_schema_mapping": {
-    "NAME": "full_name",
-    "EMAIL": "email_address",
-    "PHONE_NUMBER": "contact_number"
+    "NAME": ["full_name"],
+    "EMAIL": ["email_address"],
+    "PHONE_NUMBER": ["phone_number"],
+    "USER_ID": ["user_id"]
   },
   "input_token": 1245,
   "output_token": 87,
@@ -328,7 +399,18 @@ Example output for RDS/Aurora scanning:
 }
 ```
 
-Example output for S3 scanning:
+### Detection Method Reasoning
+
+The `reason` field provides transparency about how each PII category was detected:
+
+- **Rule-based detection**: Field name matching (exact or substring)
+- **Regex-based detection**: Data value pattern matching
+- **AI-based detection**: Amazon Bedrock Nova Pro model analysis
+
+### S3 Output Format
+
+Example output for S3 scanning (format remains similar for S3 objects):
+
 ```json
 {
   "source_type": "S3",
@@ -341,14 +423,30 @@ Example output for S3 scanning:
   "file_type": "pdf",
   "file_size": 1024000,
   "has_pii": true,
-  "pii_categories": ["NAME", "ADDRESS", "CREDIT_CARD_NUMBER"],
+  "pii_categories": {
+    "NAME": {
+      "confidence_score": 0.95,
+      "reason": "AI-based detection found personal names in document content"
+    },
+    "ADDRESS": {
+      "confidence_score": 0.87,
+      "reason": "AI-based detection identified address information"
+    },
+    "CREDIT_CARD_NUMBER": {
+      "confidence_score": 0.92,
+      "reason": "AI-based detection found credit card number patterns"
+    }
+  },
   "input_token": 2456,
   "output_token": 92,
   "timestamp": "2025-06-12T04:00:00.000000"
 }
 ```
 
+### Image Files with Bounding Boxes
+
 For image files, the output includes bounding box coordinates for each detected PII element:
+
 ```json
 {
   "source_type": "S3",
@@ -361,7 +459,24 @@ For image files, the output includes bounding box coordinates for each detected 
   "file_type": "png",
   "file_size": 512000,
   "has_pii": true,
-  "pii_categories": ["NAME", "DATE_OF_BIRTH", "NATIONAL_IDENTIFICATION_NUMBER", "PROFILE_PHOTO"],
+  "pii_categories": {
+    "NAME": {
+      "confidence_score": 0.98,
+      "reason": "AI-based detection found name text in image"
+    },
+    "DATE_OF_BIRTH": {
+      "confidence_score": 0.94,
+      "reason": "AI-based detection identified date of birth"
+    },
+    "NATIONAL_IDENTIFICATION_NUMBER": {
+      "confidence_score": 0.96,
+      "reason": "AI-based detection found ID number pattern"
+    },
+    "PROFILE_PHOTO": {
+      "confidence_score": 0.99,
+      "reason": "AI-based detection identified facial features"
+    }
+  },
   "pii_bounding_box": {
     "NAME": [391, 182, 647, 809],
     "DATE_OF_BIRTH": [65, 204, 280, 449],
@@ -377,9 +492,12 @@ For image files, the output includes bounding box coordinates for each detected 
 ## Limitations
 
 - The scripts use sampling to analyze data, so they may not detect all PII in very large datasets
-- Supported file types for S3 scanning: png, jpeg, gif, webp, pdf, csv, doc, docx, xls, xlsx, html, txt, md
-- The accuracy of PII detection depends on the capabilities of the Amazon Bedrock Nova Pro model
+- Supported file types for S3 scanning: png, jpeg, gif, webp, pdf, csv, doc, docx, xls, xlsx, html, txt, md, json, jsonl
+- The accuracy of AI-based PII detection depends on the capabilities of the Amazon Bedrock Nova Pro model
+- Rule-based detection accuracy depends on the completeness of your attribute and regex mapping files
+- Regex patterns may have false positives or negatives depending on data format variations
 - Token limits may affect the analysis of very large files or database records
+- For RDS/Aurora scanning, regex-based detection is only applied to sampled data, not the entire dataset
 
 ## Security Considerations
 
