@@ -394,6 +394,7 @@ def process_single_table(cnx, db_name, table_name,
             elif isinstance(model_response, str):
                 result['error'] = model_response
                 result['timestamp'] = datetime.now().isoformat()
+                print(f"Error processing table '{db_name}.{table_name}': {model_response}")
                 results.append(result.copy())
         else:
             # Handle case where table has no schema or data

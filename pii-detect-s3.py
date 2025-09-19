@@ -364,6 +364,7 @@ def main():
             elif isinstance(model_response, str):
                 result['error'] = model_response
                 result['timestamp'] = datetime.now().isoformat()
+                print(f"Error processing S3 object '{object_key}': {model_response}")
                 results.append(result.copy())
             time.sleep(delay)
 
