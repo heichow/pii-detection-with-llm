@@ -323,27 +323,34 @@ def main():
             result['file_size'] = sample_object['Size']
             if debug:
                 result['presigned_url'] = generate_presigned_url(bucket_name, object_key, region_name)
+            try:
+                model_response = s3_detect_pii(bucket_name, object_key, ext, region_name, sample_rate, limit)
+                if isinstance(model_response, dict):
+                    pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
+                    result.update(pii_result)
+                    result['has_pii'] = len(pii_result['pii_categories']) > 0
+                    if result['has_pii']:
+                        result['confidence_score'] = sum(cat['confidence_score'] for cat in pii_result['pii_categories'].values()) / len(pii_result['pii_categories'])
+                    result['input_token'] = model_response['usage']['inputTokens']
+                    result['output_token'] = model_response['usage']['outputTokens']
+                    result['timestamp'] = datetime.now().isoformat()
+                    
+                    print(json.dumps(result, indent=2))
+                    print(f"Input Token: {model_response['usage']['inputTokens']}")
+                    print(f"Output Token: {model_response['usage']['outputTokens']}")
             
-            model_response = s3_detect_pii(bucket_name, object_key, ext, region_name, sample_rate, limit)
-            if isinstance(model_response, dict):
-                pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
-                result.update(pii_result)
-                result['has_pii'] = len(pii_result['pii_categories']) > 0
-                if result['has_pii']:
-                    result['confidence_score'] = sum(cat['confidence_score'] for cat in pii_result['pii_categories'].values()) / len(pii_result['pii_categories'])
-                result['input_token'] = model_response['usage']['inputTokens']
-                result['output_token'] = model_response['usage']['outputTokens']
+                    results.append(result.copy())    
+                elif isinstance(model_response, str):
+                    result['error'] = model_response
+                    result['timestamp'] = datetime.now().isoformat()
+                    print(f"Error processing S3 object '{object_key}': {model_response}")
+                    results.append(result.copy())
+            except Exception as e:
+                # Handle any other unexpected errors
+                error_msg = f"Unexpected error processing S3 object '{object_key}': {e}"
+                result['error'] = error_msg
                 result['timestamp'] = datetime.now().isoformat()
-                
-                print(json.dumps(result, indent=2))
-                print(f"Input Token: {model_response['usage']['inputTokens']}")
-                print(f"Output Token: {model_response['usage']['outputTokens']}")
-        
-                results.append(result.copy())    
-            elif isinstance(model_response, str):
-                result['error'] = model_response
-                result['timestamp'] = datetime.now().isoformat()
-                print(f"Error processing S3 object '{object_key}': {model_response}")
+                print(f"Error: {error_msg}")
                 results.append(result.copy())
             time.sleep(delay)
 
