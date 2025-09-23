@@ -164,7 +164,7 @@ The secret should have this format:
 
 2. Install required Python packages:
    ```bash
-   pip install boto3 mysql-connector-python Pillow
+   pip install boto3 mysql-connector-python numpy==2.2.1 pandas Pillow 
    ```
 
 3. Set up rule-based detection files (optional but recommended):

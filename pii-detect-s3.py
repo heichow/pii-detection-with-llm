@@ -308,15 +308,6 @@ def main():
     
     for folder_name in sample_data.keys():
         folder = sample_data[folder_name]
-
-        result = {}
-        result['source_type'] = 'S3'
-        result['region'] = region_name
-        result['bucket'] = bucket_name
-        result['folder'] = folder_name
-        result['sample_size'] = folder['sample_size']
-        result['total_objects'] = folder['total_objects']
-
         for sample_object in folder['sampled_objects']:
             object_key = sample_object['Key']
             print(object_key)
@@ -338,6 +329,13 @@ def main():
                 # Regular file with extension
                 ext = filename.split('.')[-1]
             
+            result = {}
+            result['source_type'] = 'S3'
+            result['region'] = region_name
+            result['bucket'] = bucket_name
+            result['folder'] = folder_name
+            result['sample_size'] = folder['sample_size']
+            result['total_objects'] = folder['total_objects']
             result['object_key'] = object_key
             result['file_type'] = ext
             result['file_size'] = sample_object['Size']
