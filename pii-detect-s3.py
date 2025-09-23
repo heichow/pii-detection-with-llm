@@ -99,7 +99,7 @@ def sample_s3_data_by_folder(bucket_name, prefix='', sample_rate=0.1, limit=100)
 
     return sample_data
 
-def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=100):
+def s3_detect_pii(bucket_name, object_key, ext, region_name="eu-central-1", sample_rate=0.1, limit=100):
     """
     Detect PII in S3 objects using Amazon Bedrock.
     
@@ -112,29 +112,13 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
     """
     # Create a Bedrock Runtime client
     client = boto3.client("bedrock-runtime", region_name=region_name)
-
+    
+    s3_path = f"s3://{bucket_name}/{object_key}" 
     model_id = get_nova_model_id(region_name)
-    content = []
     
     file_support = False
+    content = []
 
-    filename = s3_path.split('/')[-1]
-    # Check if it's a hidden file (starts with dot) or has no extension
-    if filename.startswith('.'):
-        # Hidden file - check if it has an extension after the initial dot
-        if filename.count('.') > 1:
-            # Hidden file with extension (e.g., .file.txt)
-            ext = filename.split('.')[-1]
-        else:
-            # Just a hidden file without extension (e.g., .gitignore)
-            ext = None
-    elif '.' not in filename:
-        # Regular file without extension
-        ext = None
-    else:
-        # Regular file with extension
-        ext = filename.split('.')[-1]
-    
     if ext == 'jpg':
         ext = 'jpeg'
     if ext in ['png', 'jpeg', 'gif', 'webp']:
@@ -164,7 +148,7 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
         })
     if ext in ['json', 'jsonl', 'csv', 'tsv']:
         file_support = True
-        
+
         match ext:
             case 'json':
                 s3_file = pd.read_json(s3_path)
@@ -191,9 +175,7 @@ def s3_detect_pii(s3_path, region_name="eu-central-1", sample_rate=0.1, limit=10
         """
         content.append({"text": prompt})
     
-    
     content.append({"text": "Detect PII categories in the provided data, and follow the instruction to return the result in JSON format."})
-    
     messages = [
         {
             "role": "user",
@@ -342,8 +324,7 @@ def main():
             if debug:
                 result['presigned_url'] = generate_presigned_url(bucket_name, object_key, region_name)
             
-            s3_path = f"s3://{bucket_name}/{object_key}" 
-            model_response = s3_detect_pii(s3_path, region_name, sample_rate, limit)
+            model_response = s3_detect_pii(bucket_name, object_key, ext, region_name, sample_rate, limit)
             if isinstance(model_response, dict):
                 pii_result = json.loads(model_response['output']['message']['content'][0]['text'])
                 result.update(pii_result)
